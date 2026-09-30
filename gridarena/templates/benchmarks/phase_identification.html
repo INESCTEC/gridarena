@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/benchmark-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="bench-header">
+    <h2>Phase Identification Benchmark</h2>
+    <p>Download benchmark data, submit predicted phases and evaluate algorithm performance.</p>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="bench-summary">
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scDifficulty">clean</div>
+    <div class="bench-summary-card__label">Selected Difficulty</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scDataset">Not downloaded</div>
+    <div class="bench-summary-card__label">Dataset Status</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scSubmission">Not submitted</div>
+    <div class="bench-summary-card__label">Last Submission</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scScore">—</div>
+    <div class="bench-summary-card__label">Last Score</div>
+  </div>
+</div>
+
+<!-- Benchmark Setup -->
+<div class="bench-setup">
+  <h3>Benchmark Setup</h3>
+  <div class="field">
+    <label title="Identifies your submission. Use different values to keep multiple attempts (e.g. alice_v1, alice_v2).">Submission ID</label>
+    <input class="input" type="text" id="userId" placeholder="e.g. alice_v1" style="width:220px;">
+  </div>
+  <div class="field">
+    <label title="The grid to evaluate phase identification on.">Grid ID</label>
+    <select id="gridId" class="input" style="width:220px;">
+      <option value="" disabled selected>Select a grid...</option>
+      {% for g in grids %}
+      <option value="{{ g }}">{{ g }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label title="Controls the noise/corruption level applied to measurements. 'clean' = no corruption, 'hard' = maximum corruption.">Difficulty</label>
+    <select id="difficultySelect" class="input" style="width:220px;" onchange="document.getElementById('scDifficulty').textContent = this.value;">
+      <option value="clean" selected>clean</option>
+      <option value="easy">easy</option>
+      <option value="medium">medium</option>
+      <option value="hard">hard</option>
+    </select>
+  </div>
+</div>
+
+<!-- Step 1: Download -->
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">1</div>
+    <h4 class="bench-step__title">Download Benchmark Data</h4>
+  </div>
+  <p class="bench-step__desc">Download the training dataset (with labelled phases) and the phase data (anonymised, phases hidden) for algorithm evaluation.</p>
+
+  <div class="field">
+    <button class="btn-secondary" type="button" id="btnDownloadTrain" title="Download labelled training data with visible phases for algorithm development.">Download Training Dataset</button>
+    <button class="btn btn-primary" type="button" id="btnDownloadPhase" title="Download anonymised test data with hidden phases for submission.">Download Phase Data</button>
+  </div>
+  <p class="muted" id="downloadMsg"></p>
+</div>
+
+<!-- Step 2: Submit -->
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">2</div>
+    <h4 class="bench-step__title">Submit Predictions</h4>
+  </div>
+  <p class="bench-step__desc">Upload a JSON file mapping anonymised keys to your predicted phases (R, S, or T).</p>
+
+  <input id="guessFile" type="file" accept=".json" hidden>
+  <div id="guessDrop" class="drop" role="button" tabindex="0">
+    <div class="icon">&#11014;</div>
+    <div class="drop__title">Drop prediction JSON here or click to choose<br><span class="muted">Accepted: .json</span></div>
+    <div class="drop__label muted" id="guessFileLabel">No file selected</div>
+  </div>
+
+  <div class="field" style="margin-top:12px;">
+    <button class="btn btn-primary" type="button" id="btnSubmit" disabled>Submit Predictions</button>
+  </div>
+  <p class="muted" id="uploadMsg"></p>
+
+  <div class="bench-result" id="submitResult">
+    <h4>Submission Received</h4>
+    <p class="muted" id="submitResultMsg"></p>
+  </div>
+</div>
+
+<!-- Step 3: Evaluate -->
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">3</div>
+    <h4 class="bench-step__title">Evaluate Score</h4>
+  </div>
+  <p class="bench-step__desc">Check your phase identification accuracy against the ground truth.</p>
+
+  <div class="field">
+    <button class="btn btn-primary" type="button" id="btnScore">Check Score</button>
+  </div>
+
+  <div class="bench-result" id="scoreResult">
+    <h4>Score Results</h4>
+    <table id="scoreTable"></table>
+  </div>
+
+  <div class="bench-result bench-result--error" id="scoreError">
+    <h4>Error</h4>
+    <p class="muted" id="scoreErrorMsg"></p>
+  </div>
+</div>
+
+<!-- JSON format hint -->
+<details class="bench-hint">
+  <summary>Prediction JSON Format</summary>
+  <div class="bench-hint__body">
+    <p>The prediction file should be a JSON object mapping anonymised keys to predicted phases:</p>
+    <pre>{
+  "anon_key_a1b2": "R",
+  "anon_key_c3d4": "S",
+  "anon_key_e5f6": "T",
+  ...
+}</pre>
+    <p>Keys must match those returned by the <code>Download Phase Data</code> endpoint. Values must be one of <code>"R"</code>, <code>"S"</code>, or <code>"T"</code>.</p>
+    <p>The <strong>Submission ID</strong> and <strong>Grid ID</strong> from Benchmark Setup are added automatically. The full request sent to the API is:</p>
+    <pre>{
+  "guess_id": "your_submission_id",
+  "grid_id": "your_grid_id",
+  "guesses": {
+    "anon_key_a1b2": "R",
+    "anon_key_c3d4": "S",
+    "anon_key_e5f6": "T"
+  }
+}</pre>
+    <p>See <a href="/docs">API Docs</a> for the full schema specification.</p>
+  </div>
+</details>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/benchmark-phase.js"></script>
+{% endblock %}

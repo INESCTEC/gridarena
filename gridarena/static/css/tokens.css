@@ -1,0 +1,62 @@
+/* Design tokens -- single source of truth for color/spacing/typography/
+   elevation across every page. Every other CSS file should reference these
+   custom properties instead of hardcoding literals. */
+:root {
+  /* Surfaces */
+  --color-canvas: #f4f5f9;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #eef0f6;
+  --color-border: #e2e4ec;
+
+  /* Text */
+  --color-text: #1a1d29;
+  --color-text-muted: #6b7089;
+
+  /* Sidebar */
+  --color-sidebar-bg: #0d0f1a;
+  --color-sidebar-hover: #181b2e;
+  --color-sidebar-active: #242a47;
+  --color-sidebar-text: #a8adc7;
+
+  /* Accent -- primary actions, links, active states */
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-soft: #eef0fd;
+
+  /* Secondary accent -- grid/energy/data-viz elements, wordmark, chart series */
+  --color-energy: #0d9488;
+  --color-energy-soft: #ecfdf9;
+
+  /* Semantic */
+  --color-success: #059669;
+  --color-success-soft: #ecfdf5;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-warning: #d97706;
+  --color-warning-soft: #fffbeb;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Radius / shadow */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, .08);
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+}

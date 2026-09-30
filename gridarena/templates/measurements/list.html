@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<style>
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable .sort-arrow { margin-left: 4px; font-size: .8em; }
+  th.sortable .sort-arrow::after { content: '\2195'; opacity: .35; }
+  th.sortable.sorted-asc .sort-arrow::after { content: '\25B2'; opacity: 1; }
+  th.sortable.sorted-desc .sort-arrow::after { content: '\25BC'; opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="grid-dash-header">
+    <div>
+      <h2>Measurements</h2>
+      <p>Upload, inspect and manage time-series measurement data for your grids.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="grid-summary-cards">
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ items | length }}</div>
+    <div class="grid-summary-card__label">Total Grids</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ grids_with_data }}</div>
+    <div class="grid-summary-card__label">Grids With Data</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ "{:,}".format(total_records) }}</div>
+    <div class="grid-summary-card__label">Total Measurements</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ items | selectattr('n_records', 'gt', 0) | map(attribute='last_ts') | list | last or '—' }}</div>
+    <div class="grid-summary-card__label">Latest Measurement</div>
+  </div>
+</div>
+
+<!-- Upload card -->
+<div class="upload-card">
+  <h3>Upload Measurement Data</h3>
+  <p class="upload-card__desc">Upload a JSON file containing time-series measurements (power, voltage) for a grid. The grid_id is read from the file.</p>
+
+  <form id="uploadForm" action="/measurements/" method="post" enctype="multipart/form-data">
+    <input id="fileInput" type="file" name="file" accept=".json,application/json" hidden>
+    <div id="drop" class="drop" role="button" tabindex="0">
+      <div class="icon">&#11014;</div>
+      <div class="drop__title">Drop measurement JSON here or click to choose<br><span class="muted">Accepted: .json</span></div>
+      <div class="drop__label muted" id="fileLabel">No file selected</div>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <button id="uploadBtn" class="btn btn-primary" type="submit" disabled>Upload Data</button>
+    </div>
+    <p class="muted" id="uploadMsg"></p>
+  </form>
+</div>
+
+<!-- Delete measurements card -->
+<div class="upload-card">
+  <h3>Delete Measurements</h3>
+  <p class="upload-card__desc">Remove measurements by grid, node, phase, or time range.</p>
+
+  <details class="advanced-accordion">
+    <summary>Delete Filters</summary>
+    <div class="advanced-accordion__body">
+      <div class="advanced-accordion__hint">Specify which measurements to delete. Only grid_id is required.</div>
+      <form id="deleteForm">
+        <div class="field">
+          <label style="min-width:120px;">Grid ID</label>
+          <input class="input" type="text" id="gridId" name="grid_id" placeholder="grid_id" required style="width:200px;">
+        </div>
+        <div class="field">
+          <label style="min-width:120px;">Node ID</label>
+          <input class="input" type="text" id="nodeId" name="node_id" placeholder="optional" style="width:200px;">
+        </div>
+        <div class="field">
+          <label style="min-width:120px;">Phase</label>
+          <select id="phase" name="phase" class="input" style="width:200px;">
+            <option value="">All</option>
+            <option value="R">R</option>
+            <option value="S">S</option>
+            <option value="T">T</option>
+          </select>
+        </div>
+        <div class="field">
+          <label style="min-width:120px;">Start</label>
+          <input class="input" type="datetime-local" id="start" name="start" style="width:200px;">
+        </div>
+        <div class="field">
+          <label style="min-width:120px;">End</label>
+          <input class="input" type="datetime-local" id="end" name="end" style="width:200px;">
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <button id="deleteBtn" class="btn-sm-danger" type="submit" style="height:34px; padding:0 16px; font-size:13px;">Delete Measurements</button>
+        </div>
+        <p class="muted" id="deleteMsg"></p>
+      </form>
+    </div>
+  </details>
+</div>
+
+<!-- Grids with measurement data -->
+<div class="panel grids-section">
+  <h3>Grid Measurement Overview</h3>
+  <p class="grids-section__desc">Click a grid to open the measurement dashboard with charts and filters.</p>
+
+  <div class="grids-search">
+    <input type="text" id="gridSearch" placeholder="Search grids..." oninput="filterGridTable()">
+  </div>
+
+  <table class="data-table" id="gridsTable">
+    <thead>
+      <tr>
+        <th class="sortable" onclick="sortGridTable('grid-id', 'text', this)">Grid ID <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('records', 'num', this)">Records <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('nodes', 'num', this)">Nodes <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('first', 'date', this)">First <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('last', 'date', this)">Last <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('status', 'num', this)">Status <span class="sort-arrow"></span></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in items %}
+      <tr data-grid-id="{{ g.grid_id | lower }}" data-records="{{ g.n_records }}" data-nodes="{{ g.n_nodes }}" data-first="{{ g.first_ts or '' }}" data-last="{{ g.last_ts or '' }}" data-status="{{ 1 if g.n_records > 0 else 0 }}">
+        <td><a href="/measurements/ui/{{ g.grid_id }}"><strong>{{ g.grid_id }}</strong></a></td>
+        <td>{{ "{:,}".format(g.n_records) }}</td>
+        <td>{{ g.n_nodes }}</td>
+        <td>{{ g.first_ts or '—' }}</td>
+        <td>{{ g.last_ts or '—' }}</td>
+        <td>
+          {% if g.n_records > 0 %}
+          <span class="badge badge--hist">Has data</span>
+          {% else %}
+          <span class="badge badge--no-hist">No data</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            {% if g.n_records > 0 %}
+            <a href="/measurements/ui/{{ g.grid_id }}" class="btn btn-primary">Dashboard</a>
+            {% endif %}
+            <a href="/grid/ui/{{ g.grid_id }}" class="btn btn-primary">Grid</a>
+            <a href="/powerflow/ui" class="btn btn-primary">Power Flow</a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center; padding:24px; color:#6b7280;">No grids found. Upload a grid first, then add measurement data.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterGridTable() {
+  var q = document.getElementById('gridSearch').value.toLowerCase();
+  document.querySelectorAll('#gridsTable tbody tr').forEach(function (row) {
+    var id = row.getAttribute('data-grid-id') || '';
+    row.style.display = id.indexOf(q) !== -1 ? '' : 'none';
+  });
+}
+
+var gridSortDir = {};
+function sortGridTable(key, type, th) {
+  var tbody = document.querySelector('#gridsTable tbody');
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'))
+    .filter(function (r) { return r.hasAttribute('data-grid-id'); });
+  if (!rows.length) { return; }
+
+  var dir = gridSortDir[key] === 'asc' ? 'desc' : 'asc';
+  gridSortDir = {}; gridSortDir[key] = dir;
+  var mult = dir === 'asc' ? 1 : -1;
+  var attr = 'data-' + key;
+
+  rows.sort(function (a, b) {
+    var av = a.getAttribute(attr) || '';
+    var bv = b.getAttribute(attr) || '';
+    if (type === 'num') {
+      return ((parseFloat(av) || 0) - (parseFloat(bv) || 0)) * mult;
+    }
+    // text and date: numeric-aware locale compare (ISO dates sort correctly)
+    return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' }) * mult;
+  });
+
+  rows.forEach(function (r) { tbody.appendChild(r); });
+  document.querySelectorAll('#gridsTable thead th.sortable').forEach(function (h) {
+    h.classList.remove('sorted-asc', 'sorted-desc');
+  });
+  th.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+}
+</script>
+<script src="/static/js/measurements-list.js"></script>
+{% endblock %}

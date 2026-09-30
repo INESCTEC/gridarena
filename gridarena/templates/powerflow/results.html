@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+  <div class="section-title">Power Flow</div>
+  <p class="muted">Viewing power flow results for grid <strong>{{ grid_id }}</strong>.</p>
+  <p><a href="/powerflow/ui">&larr; Back to Power Flow</a></p>
+</div>
+
+<section class="panel">
+  <h3>Phase Selection</h3>
+  <form method="get" id="phaseForm" style="margin-bottom:16px;">
+    <label for="phase">Select Phase:</label>
+    <select class="input" id="phase" name="phase" onchange="this.form.submit()">
+      <option value="R" {{ 'selected' if phase == 'R' else '' }}>R</option>
+      <option value="S" {{ 'selected' if phase == 'S' else '' }}>S</option>
+      <option value="T" {{ 'selected' if phase == 'T' else '' }}>T</option>
+    </select>
+  </form>
+</section>
+
+{% if empty %}
+<section class="panel">
+  <h3>No Power Flow Results Found</h3>
+  <p class="muted">No data was found for <strong>Grid {{ grid_id }}</strong> in <strong>Phase {{ phase }}</strong>.</p>
+  <div style="margin-top: 16px;">
+    <a href="/powerflow/ui" class="btn btn-primary">Back to Grids</a>
+  </div>
+</section>
+{% else %}
+<section class="panel">
+  <h3>Voltage Magnitude</h3>
+  <div id="magChart" style="width:100%;height:400px;"></div>
+</section>
+
+<section class="panel">
+  <h3>Voltage Angle</h3>
+  <div id="angChart" style="width:100%;height:400px;"></div>
+</section>
+
+<section class="panel">
+  <h3>Data Table</h3>
+  {{ table_html | safe }}
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not empty %}
+<script>
+(function () {
+  function loadPlotlyAndRender() {
+    var magData = {{ traces_mag | tojson }};
+    var angData = {{ traces_ang | tojson }};
+
+    Plotly.newPlot('magChart', magData, {
+      title: 'Voltage Magnitude per Node (Phase {{ phase }})',
+      xaxis: { title: 'Datetime' },
+      yaxis: { title: 'Voltage (V)' },
+      plot_bgcolor: '#f8fafc',
+      paper_bgcolor: '#ffffff'
+    });
+
+    Plotly.newPlot('angChart', angData, {
+      title: 'Voltage Angle per Node (Phase {{ phase }})',
+      xaxis: { title: 'Datetime' },
+      yaxis: { title: 'Angle (°)' },
+      plot_bgcolor: '#f8fafc',
+      paper_bgcolor: '#ffffff'
+    });
+  }
+
+  if (window.Plotly) {
+    loadPlotlyAndRender();
+  } else {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.plot.ly/plotly-2.26.0.min.js';
+    s.onload = loadPlotlyAndRender;
+    document.head.appendChild(s);
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

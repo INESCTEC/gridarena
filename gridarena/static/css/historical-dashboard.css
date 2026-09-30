@@ -1,0 +1,181 @@
+/* ── Summary cards ── */
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.summary-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.summary-card__value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin-bottom: 2px;
+}
+
+.summary-card__label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Filter toolbar ── */
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 18px;
+}
+
+.filter-bar label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.filter-bar .input,
+.filter-bar select,
+.filter-bar input {
+  height: 32px;
+  font-size: 12px;
+}
+
+.quick-range {
+  display: flex;
+  gap: 4px;
+}
+
+.quick-range button {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.quick-range button:hover,
+.quick-range button.active {
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: var(--color-accent);
+}
+
+/* ── Chart cards inside tabs ── */
+/* (.dash-tabs / .dash-tab / .dash-pane now live in the shared style.css) */
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.chart-grid--full {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 900px) {
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+}
+
+.chart-card h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+/* ── Raw data table improvements ── */
+
+.raw-table-wrap {
+  max-height: 500px;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.raw-table-wrap table {
+  font-size: 12px;
+}
+
+.raw-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-sunken);
+  z-index: 1;
+}
+
+.raw-table-wrap tbody tr:hover {
+  background: var(--color-accent-soft);
+}
+
+/* ── Dashboard header ── */
+
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dash-header__meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.dash-header__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Selector row for drilldown ── */
+
+.selector-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.selector-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.selector-row select {
+  height: 32px;
+  font-size: 12px;
+}

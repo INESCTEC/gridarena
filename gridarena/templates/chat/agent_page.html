@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if not agent %}
+<div class="chat-fullpage">
+  <div class="chat-fullpage__header">
+    <h2>Document Assistants</h2>
+    <p class="muted">Pick an assistant from the Document Assistants popup (bottom-right corner) to start a conversation.</p>
+  </div>
+</div>
+{% else %}
+<div class="doc-agent-page">
+  <div class="doc-agent-page__main">
+    <div class="chat-fullpage__header" style="display:flex; align-items:flex-end; justify-content:space-between;">
+      <div>
+        <h2>{{ agent.name }}</h2>
+        <p class="muted">{{ agent.description }}</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn" id="doc-agent-page-delete">Delete Assistant</button>
+        <a href="/chat/ui" class="btn">&larr; Grid Assistant</a>
+      </div>
+    </div>
+    <div id="doc-agent-page-messages" class="chat-fullpage__messages"></div>
+    <form id="doc-agent-page-form" class="chat-fullpage__input">
+      <input type="text" id="doc-agent-page-input" placeholder="Ask about these documents..." autocomplete="off">
+      <button class="btn btn-primary" type="submit">Send</button>
+    </form>
+  </div>
+  <div class="doc-agent-page__sources">
+    <h4 style="margin:0 0 8px; font-size:12px;">Sources</h4>
+    <div id="doc-agent-page-sources-list"></div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if agent %}
+<script>window.DOC_AGENT = {{ agent | tojson }};</script>
+<script src="/static/js/agent_chat_page.js"></script>
+{% endif %}
+{% endblock %}

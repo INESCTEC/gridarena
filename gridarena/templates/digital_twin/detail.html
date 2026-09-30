@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/digital-twin-dashboard.css">
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="dt-header">
+    <h2>{{ dt.name or dt.digital_twin_id }}</h2>
+    <p>Grid: <strong>{{ dt.grid_id }}</strong> &middot; Status: <span class="status-badge status-badge--{{ dt.status }}">{{ dt.status }}</span></p>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="dt-summary">
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value" id="scStatus">{{ dt.status | capitalize }}</div>
+    <div class="dt-summary-card__label">Status</div>
+  </div>
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value">{{ dt.update_interval_seconds }}s</div>
+    <div class="dt-summary-card__label">Interval</div>
+  </div>
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value">{{ results | length }}</div>
+    <div class="dt-summary-card__label">Total Runs</div>
+  </div>
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value">{{ (dt.last_run_at or '—')[:16] }}</div>
+    <div class="dt-summary-card__label">Last Run</div>
+  </div>
+</div>
+
+<!-- Lifecycle controls -->
+<div class="dt-step">
+  <div class="dt-step__header">
+    <div class="dt-step__number" style="background:#059669;">&#9654;</div>
+    <h4 class="dt-step__title">Lifecycle Controls</h4>
+  </div>
+  <div class="dt-actions">
+    <button class="btn btn-primary" onclick="startTwin()">Start</button>
+    <button class="btn" onclick="stopTwin()">Stop</button>
+    <button class="btn btn-primary" onclick="tickTwin()">Run Once (Tick)</button>
+    <button class="btn" onclick="cloneOffline()">Clone as Offline Scenario</button>
+  </div>
+  <p class="muted" id="lifecycleMsg" style="margin-top:8px;"></p>
+</div>
+
+<!-- Live Grid Graph -->
+<div class="dt-step">
+  <div class="dt-step__header">
+    <div class="dt-step__number" style="background:#7c3aed;">&#x25C9;</div>
+    <h4 class="dt-step__title">Grid State</h4>
+  </div>
+  <p class="dt-step__desc">Nodes are colored by voltage deviation from nominal. Hover a node to see its current values. Click to inspect.</p>
+  <div style="display:flex; gap:16px; flex-wrap:wrap;">
+    <div style="flex:2; min-width:380px;">
+      <div id="liveGridGraph" style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-md); min-height:400px;"></div>
+      <div style="display:flex; gap:16px; justify-content:center; margin-top:8px; font-size:11px; color:var(--color-text-muted);">
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#dc2626; margin-right:3px;"></span>PT</span>
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#059669; margin-right:3px;"></span>Normal (&#177;5%)</span>
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#f59e0b; margin-right:3px;"></span>Warning (5–10%)</span>
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444; margin-right:3px;"></span>Violation (&gt;10%)</span>
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#94a3b8; margin-right:3px;"></span>No data</span>
+      </div>
+    </div>
+    <div style="flex:1; min-width:240px;">
+      <div id="nodeInfoPanel" style="background:var(--color-surface-sunken); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:16px; min-height:400px;">
+        <h4 style="margin:0 0 12px; font-size:14px; color:var(--color-text);">Node Details</h4>
+        <p class="muted" id="nodeInfoPlaceholder" style="font-size:12px;">Hover or click a node on the graph to see its measurements.</p>
+        <div id="nodeInfoContent" style="display:none;">
+          <dl class="dt-review-grid" id="nodeInfoGrid" style="font-size:12px;"></dl>
+          <div id="nodePowerChart" style="margin-top:12px; min-height:180px;"></div>
+          <div id="nodeVoltageChart" style="margin-top:8px; min-height:180px;"></div>
+          <p class="muted" id="nodeChartsLoading" style="display:none; font-size:11px; margin-top:8px;">Loading history...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Latest Measurements Table -->
+<div class="dt-step">
+  <div class="dt-step__header">
+    <div class="dt-step__number" style="background:var(--color-accent);">&#x1F4CB;</div>
+    <h4 class="dt-step__title">Latest Measurements</h4>
+  </div>
+  <p class="dt-step__desc">Raw streamed values from the last tick. <button type="button" class="btn" style="height:24px; padding:0 10px; font-size:11px;" onclick="refreshMeasurements()">Refresh</button></p>
+  <div id="measurementsLoading" style="padding:12px; color:var(--color-text-muted); font-size:12px;">Loading latest measurements...</div>
+  <table class="data-table" id="measurementsTable" style="display:none;">
+    <thead>
+      <tr>
+        <th>Node</th>
+        <th>Phase</th>
+        <th>Timestamp</th>
+        <th>Active Power (kW)</th>
+        <th>Reactive Power (kVAr)</th>
+        <th>Voltage (V)</th>
+        <th>Angle</th>
+      </tr>
+    </thead>
+    <tbody id="measurementsBody"></tbody>
+  </table>
+  <p class="muted" id="measurementsEmpty" style="display:none; padding:12px 0; font-size:12px; text-align:center;">No measurements yet. Run a tick first.</p>
+</div>
+
+<!-- Latest Metrics -->
+<div class="dt-step">
+  <div class="dt-step__header">
+    <div class="dt-step__number" style="background:#0ea5e9;">&#x1D4DC;</div>
+    <h4 class="dt-step__title">Latest Metrics</h4>
+  </div>
+  <div class="dt-metrics" id="metricsCards">
+    {% if results %}
+    {% set r = results[0] %}
+    <div class="dt-metric"><div class="dt-metric__value">{{ r.convergence_status }}</div><div class="dt-metric__label">Convergence</div></div>
+    <div class="dt-metric"><div class="dt-metric__value">{{ '%.4f' | format(r.voltage_mae) if r.voltage_mae is not none else '—' }}</div><div class="dt-metric__label">Voltage MAE</div></div>
+    <div class="dt-metric"><div class="dt-metric__value">{{ '%.4f' | format(r.voltage_rmse) if r.voltage_rmse is not none else '—' }}</div><div class="dt-metric__label">Voltage RMSE</div></div>
+    <div class="dt-metric"><div class="dt-metric__value">{{ '%.4f' | format(r.max_voltage_error) if r.max_voltage_error is not none else '—' }}</div><div class="dt-metric__label">Max V Error</div></div>
+    <div class="dt-metric"><div class="dt-metric__value">{{ r.measurements_count }}</div><div class="dt-metric__label">Measurements</div></div>
+    <div class="dt-metric"><div class="dt-metric__value">{{ '%.0f' | format(r.execution_time_ms) if r.execution_time_ms is not none else '—' }} ms</div><div class="dt-metric__label">Execution Time</div></div>
+    {% else %}
+    <div class="dt-metric"><div class="dt-metric__value">—</div><div class="dt-metric__label">No runs yet</div></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Voltage comparison chart -->
+<div class="dt-step">
+  <div class="dt-step__header">
+    <div class="dt-step__number" style="background:#f59e0b;">&#x26A1;</div>
+    <h4 class="dt-step__title">True vs Simulated Voltage</h4>
+  </div>
+  <div class="dt-chart" id="voltageChart"></div>
+</div>
+
+<!-- Results table -->
+<div class="panel dt-results" style="margin-top:16px;">
+  <h3>Run Results</h3>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Convergence</th>
+        <th>V MAE</th>
+        <th>V RMSE</th>
+        <th>Max V Err</th>
+        <th>Measurements</th>
+        <th>Missing</th>
+        <th>Time (ms)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td>{{ r.timestamp[:19] }}</td>
+        <td><span class="status-badge status-badge--{{ 'converged' if r.convergence_status == 'converged' else 'failed' }}">{{ r.convergence_status }}</span></td>
+        <td>{{ '%.4f' | format(r.voltage_mae) if r.voltage_mae is not none else '—' }}</td>
+        <td>{{ '%.4f' | format(r.voltage_rmse) if r.voltage_rmse is not none else '—' }}</td>
+        <td>{{ '%.4f' | format(r.max_voltage_error) if r.max_voltage_error is not none else '—' }}</td>
+        <td>{{ r.measurements_count }}</td>
+        <td>{{ r.missing_measurements }}</td>
+        <td>{{ '%.0f' | format(r.execution_time_ms) if r.execution_time_ms is not none else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center; padding:24px; color:var(--color-text-muted);">No results yet. Start the twin or run a tick.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Event log -->
+<div class="panel dt-events" style="margin-top:16px;">
+  <h3>Event Log</h3>
+  <div id="eventList">
+    {% for e in events %}
+    <div class="dt-event">
+      <span class="dt-event__time">{{ e.created_at[:19] }}</span>
+      <span class="dt-event__type dt-event__type--{{ e.event_type }}">{{ e.event_type }}</span>
+      <span class="dt-event__msg">{{ e.message }}</span>
+    </div>
+    {% else %}
+    <p class="muted" style="padding:12px 0; font-size:12px;">No events yet.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Configuration (collapsed) -->
+<details class="panel" style="margin-top:16px;">
+  <summary style="cursor:pointer; font-weight:600; font-size:14px; padding:8px 0;">Configuration Details</summary>
+  <div style="margin-top:12px;">
+    <div class="dt-review">
+      <dl class="dt-review-grid">
+        <dt>Digital Twin ID</dt><dd>{{ dt.digital_twin_id }}</dd>
+        <dt>Grid ID</dt><dd>{{ dt.grid_id }}</dd>
+        <dt>Broker Type</dt><dd>{{ dt.broker_type }}</dd>
+        <dt>Broker Topic</dt><dd>{{ dt.broker_topic }}</dd>
+        <dt>Source URL</dt><dd>{{ dt.source_config.url if dt.source_config.url is defined else '—' }}</dd>
+        <dt>Auth Type</dt><dd>{{ dt.source_config.auth_type if dt.source_config.auth_type is defined else 'none' }}</dd>
+        <dt>Secret Ref</dt><dd>{{ dt.source_config.secret_ref if dt.source_config.secret_ref is defined else '—' }}</dd>
+        <dt>PF Phase</dt><dd>{{ dt.powerflow_config.phase if dt.powerflow_config.phase is defined else 'R' }}</dd>
+        <dt>PF Voltage Ref</dt><dd>{{ dt.powerflow_config.voltage_ref if dt.powerflow_config.voltage_ref is defined else 230 }} V</dd>
+        <dt>Created</dt><dd>{{ dt.created_at[:19] }}</dd>
+        <dt>Updated</dt><dd>{{ dt.updated_at[:19] }}</dd>
+      </dl>
+    </div>
+    {% if dt.node_assignments %}
+    <h4 style="margin:12px 0 6px; font-size:13px;">Node Assignments ({{ dt.node_assignments | length }})</h4>
+    <div class="dt-mapping-preview">{{ dt.node_assignments | tojson(indent=2) }}</div>
+    {% endif %}
+    {% if dt.field_mapping and dt.field_mapping.keys() | list | length > 0 %}
+    <h4 style="margin:12px 0 6px; font-size:13px;">Field Mapping</h4>
+    <div class="dt-mapping-preview">{{ dt.field_mapping | tojson(indent=2) }}</div>
+    {% endif %}
+    <h4 style="margin:12px 0 6px; font-size:13px;">Source Config</h4>
+    <div class="dt-mapping-preview">{{ dt.source_config | tojson(indent=2) }}</div>
+  </div>
+</details>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var DT_ID = "{{ dt.digital_twin_id }}";
+var GRID_ID = "{{ dt.grid_id }}";
+var RESULTS = {{ results | tojson }};
+var GRAPH_DATA = {{ graph_data | tojson }};
+var VOLTAGE_REF = {{ dt.powerflow_config.voltage_ref if dt.powerflow_config.voltage_ref is defined else 230 }};
+</script>
+<script src="/static/js/digital-twin-detail.js"></script>
+{% endblock %}

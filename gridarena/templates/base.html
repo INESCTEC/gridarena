@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiByeD0iNSIgZmlsbD0iIzBkMGYxYSIvPjxsaW5lIHgxPSIxMiIgeTE9IjEyIiB4Mj0iNSIgeTI9IjYiIHN0cm9rZT0iIzBkOTQ4OCIgc3Ryb2tlLXdpZHRoPSIxLjgiLz48bGluZSB4MT0iMTIiIHkxPSIxMiIgeDI9IjE5IiB5Mj0iNiIgc3Ryb2tlPSIjMGQ5NDg4IiBzdHJva2Utd2lkdGg9IjEuOCIvPjxsaW5lIHgxPSIxMiIgeTE9IjEyIiB4Mj0iNSIgeTI9IjE4IiBzdHJva2U9IiMwZDk0ODgiIHN0cm9rZS13aWR0aD0iMS44Ii8+PGxpbmUgeDE9IjEyIiB5MT0iMTIiIHgyPSIxOSIgeTI9IjE4IiBzdHJva2U9IiMwZDk0ODgiIHN0cm9rZS13aWR0aD0iMS44Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMi42IiBmaWxsPSIjMGQ5NDg4Ii8+PGNpcmNsZSBjeD0iNSIgY3k9IjYiIHI9IjEuOCIgZmlsbD0iIzBkOTQ4OCIvPjxjaXJjbGUgY3g9IjE5IiBjeT0iNiIgcj0iMS44IiBmaWxsPSIjMGQ5NDg4Ii8+PGNpcmNsZSBjeD0iNSIgY3k9IjE4IiByPSIxLjgiIGZpbGw9IiMwZDk0ODgiLz48Y2lyY2xlIGN4PSIxOSIgY3k9IjE4IiByPSIxLjgiIGZpbGw9IiMwZDk0ODgiLz48L3N2Zz4=">
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a href="/" class="brand">
+        <svg class="brand-mark" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <line x1="12" y1="12" x2="5" y2="6" stroke="currentColor" stroke-width="1.8"/>
+          <line x1="12" y1="12" x2="19" y2="6" stroke="currentColor" stroke-width="1.8"/>
+          <line x1="12" y1="12" x2="5" y2="18" stroke="currentColor" stroke-width="1.8"/>
+          <line x1="12" y1="12" x2="19" y2="18" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="12" cy="12" r="2.6" fill="currentColor"/>
+          <circle cx="5" cy="6" r="1.8" fill="currentColor"/>
+          <circle cx="19" cy="6" r="1.8" fill="currentColor"/>
+          <circle cx="5" cy="18" r="1.8" fill="currentColor"/>
+          <circle cx="19" cy="18" r="1.8" fill="currentColor"/>
+        </svg>
+        <span>GridArena</span>
+      </a>
+      <nav class="nav">
+
+        {# ── Database ── #}
+        <div class="nav-group {{ 'open' if active in ('grid','mv_grid','measurements','historical','algorithms') else '' }}" data-nav-group>
+          <button type="button" class="nav-toggle {{ 'active' if active in ('grid','mv_grid','measurements','historical','algorithms') else '' }}" data-nav-toggle>
+            <span>Database</span>
+            <span class="caret">&#9654;</span>
+          </button>
+          <div class="submenu">
+            <a href="/grid/ui" class="submenu-item {{ 'active' if active == 'grid' else '' }}">LV Grids</a>
+            <a href="/mv_grid/ui" class="submenu-item {{ 'active' if active == 'mv_grid' else '' }}">MV Grids</a>
+            <a href="/measurements/ui" class="submenu-item {{ 'active' if active == 'measurements' else '' }}">Measurements</a>
+            <a href="/historical/ui" class="submenu-item {{ 'active' if active == 'historical' else '' }}">Historical</a>
+            <a href="/powerflow/ui" class="submenu-item {{ 'active' if active == 'algorithms' else '' }}">Power Flow</a>
+          </div>
+        </div>
+
+        {# ── Use Cases ── #}
+        <div class="nav-group {{ 'open' if active in ('benchmarks','phase_mapping','topology_discovery','state_estimation','voltage_control') else '' }}" data-nav-group>
+          <button type="button" class="nav-toggle {{ 'active' if active in ('benchmarks','phase_mapping','topology_discovery','state_estimation','voltage_control') else '' }}" data-nav-toggle>
+            <span>Use Cases</span>
+            <span class="caret">&#9654;</span>
+          </button>
+          <div class="submenu">
+            <a href="/phase_identification_benchmark/ui" class="submenu-item {{ 'active' if active in ('benchmarks','phase_mapping') else '' }}">Phase Mapping</a>
+            <a href="/topology_discovery_benchmark/ui" class="submenu-item {{ 'active' if active == 'topology_discovery' else '' }}">Topology Discovery</a>
+            <a href="/state_estimation_benchmark/ui" class="submenu-item {{ 'active' if active == 'state_estimation' else '' }}">State Estimation</a>
+            <a href="/voltage_control_benchmark/ui" class="submenu-item {{ 'active' if active == 'voltage_control' else '' }}">Voltage Control</a>
+          </div>
+        </div>
+
+        {# ── Digital Twin ── #}
+        <div class="nav-group {{ 'open' if active in ('digital_twin','digital_twin_create','digital_twin_scenarios') else '' }}" data-nav-group>
+          <button type="button" class="nav-toggle {{ 'active' if active in ('digital_twin','digital_twin_create','digital_twin_scenarios') else '' }}" data-nav-toggle>
+            <span>Digital Twin</span>
+            <span class="caret">&#9654;</span>
+          </button>
+          <div class="submenu">
+            <a href="/digital-twins/ui" class="submenu-item {{ 'active' if active == 'digital_twin' else '' }}">Overview</a>
+            <a href="/digital-twins/ui/new" class="submenu-item {{ 'active' if active == 'digital_twin_create' else '' }}">New Twin</a>
+            <a href="/offline-scenarios/ui" class="submenu-item {{ 'active' if active == 'digital_twin_scenarios' else '' }}">Scenarios</a>
+          </div>
+        </div>
+
+        {# ── AI Tools ── #}
+        <div class="nav-group {{ 'open' if active in ('rl','diffusion','chat','chat_config') else '' }}" data-nav-group>
+          <button type="button" class="nav-toggle {{ 'active' if active in ('rl','diffusion','chat','chat_config') else '' }}" data-nav-toggle>
+            <span>AI Tools</span>
+            <span class="caret">&#9654;</span>
+          </button>
+          <div class="submenu">
+            <a href="/rl/ui" class="submenu-item {{ 'active' if active == 'rl' else '' }}">RL Training</a>
+            <a href="/diffusion/ui" class="submenu-item {{ 'active' if active == 'diffusion' else '' }}">Diffusion Models</a>
+            <a href="/chat/ui" class="submenu-item {{ 'active' if active == 'chat' else '' }}">Chat Assistant</a>
+            <a href="/chat/ui/config" class="submenu-item {{ 'active' if active == 'chat_config' else '' }}">LLM Config</a>
+          </div>
+        </div>
+
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div class="page-title">{{ title }}</div>
+        <div class="top-links">
+          <a href="/docs">API Docs</a>
+        </div>
+      </header>
+
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      document.querySelectorAll('[data-nav-toggle]').forEach(function (toggle) {
+        toggle.addEventListener('click', function () {
+          var group = toggle.parentElement;
+          group.classList.toggle('open');
+          toggle.classList.toggle('active');
+        });
+      });
+    })();
+  </script>
+  {% block scripts %}{% endblock %}
+
+  <link rel="stylesheet" href="/static/css/chat.css">
+  {% if active not in ('chat', 'chat_config') %}
+  {% include "partials/chat_widget.html" %}
+  <script src="/static/js/chat.js"></script>
+  {% endif %}
+
+  {% include "partials/document_agent_popup.html" %}
+  <script src="/static/js/agent_chat.js"></script>
+</body>
+</html>

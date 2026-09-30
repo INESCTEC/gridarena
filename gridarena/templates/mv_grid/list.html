@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<style>
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable .sort-arrow { margin-left: 4px; font-size: .8em; }
+  th.sortable .sort-arrow::after { content: '\2195'; opacity: .35; }
+  th.sortable.sorted-asc .sort-arrow::after { content: '\25B2'; opacity: 1; }
+  th.sortable.sorted-desc .sort-arrow::after { content: '\25BC'; opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="grid-dash-header">
+    <div>
+      <h2>Medium Voltage Grids</h2>
+      <p>Upload MV grid specifications, connect LV grids to connection points via transformers.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="dash-tabs">
+  <button class="dash-tab active" data-tab="grids">Grids</button>
+  <button class="dash-tab" data-tab="pfdatagen">PF Data Generation</button>
+</div>
+
+<!-- Grids tab -->
+<div class="dash-pane active" id="pane-grids">
+
+<!-- Summary cards -->
+<div class="grid-summary-cards">
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ mv_grids | length }}</div>
+    <div class="grid-summary-card__label">Total MV Grids</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ total_nodes }}</div>
+    <div class="grid-summary-card__label">Total MV Nodes</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ total_cps }}</div>
+    <div class="grid-summary-card__label">Connection Points</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ total_connected }}</div>
+    <div class="grid-summary-card__label">Connected LV Grids</div>
+  </div>
+</div>
+
+<!-- Upload card -->
+<div class="upload-card">
+  <h3>Upload MV Grid JSON</h3>
+  <p class="upload-card__desc">Upload a JSON file defining the MV grid topology, cables, connection points and transformers.</p>
+
+  <form id="uploadForm">
+    <input id="fileInput" type="file" accept=".json,application/json" hidden>
+    <div id="drop" class="drop" role="button" tabindex="0">
+      <div class="icon">&#11014;</div>
+      <div class="drop__title">Drop MV Grid JSON here or click to choose<br><span class="muted">Accepted: .json</span></div>
+      <div class="drop__label muted" id="fileLabel">No file selected</div>
+    </div>
+
+    <div class="field" style="margin-top:14px;">
+      <button id="validateBtn" class="btn btn-primary" type="button" disabled>Validate JSON</button>
+      <button id="uploadBtn" class="btn btn-success" type="button" disabled style="display:none;">Upload Grid</button>
+    </div>
+    <p class="muted" id="uploadMsg"></p>
+  </form>
+
+  <div id="previewSection" style="display:none; margin-top:16px;">
+    <h4>Validation Preview</h4>
+    <div id="previewErrors" style="color:var(--color-danger);"></div>
+    <table class="data-table" id="previewTable" style="max-width:600px;"></table>
+    <div id="previewGraph" style="width:100%; height:450px; margin-top:14px;"></div>
+    <p class="muted" id="graphHint" style="display:none;">Click a <strong style="color:var(--color-success);">green connection point</strong> node to assign an LV grid after saving.</p>
+  </div>
+</div>
+
+<!-- Existing MV grids table -->
+<div class="panel grids-section">
+  <h3>Existing MV Grids</h3>
+  <p class="grids-section__desc">Inspect topology, manage transformer connections, and view connected LV grids.</p>
+
+  <div class="grids-search">
+    <input type="text" id="gridSearch" placeholder="Search grids..." oninput="filterGridTable()">
+  </div>
+
+  <table class="data-table" id="gridsTable">
+    <thead>
+      <tr>
+        <th class="sortable" onclick="sortGridTable('grid-id', 'text', this)">Grid ID <span class="sort-arrow"></span></th>
+        <th>Name</th>
+        <th>Voltage</th>
+        <th class="sortable" onclick="sortGridTable('nodes', 'num', this)">Nodes <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('cps', 'num', this)">Conn. Points <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('connected', 'num', this)">Connected LV <span class="sort-arrow"></span></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in mv_grids %}
+      <tr data-grid-id="{{ g.mv_grid_id | lower }}" data-nodes="{{ g.n_nodes }}" data-cps="{{ g.n_cps }}" data-connected="{{ g.n_connected }}">
+        <td>
+          <a href="/mv_grid/ui/{{ g.mv_grid_id }}"><strong>{{ g.mv_grid_id }}</strong></a>
+          <span class="badge badge--mv">MV</span>
+        </td>
+        <td>{{ g.name or '' }}</td>
+        <td>{{ g.nominal_voltage_kv }} kV</td>
+        <td>{{ g.n_nodes }}</td>
+        <td>{{ g.n_cps }}</td>
+        <td>
+          {% if g.n_connected > 0 %}
+          <span class="badge badge--hist">{{ g.n_connected }} connected</span>
+          {% else %}
+          <span class="badge badge--no-hist">None</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            <a href="/mv_grid/ui/{{ g.mv_grid_id }}" class="btn btn-primary">View</a>
+            <button class="btn-sm-danger" onclick="deleteMVGrid('{{ g.mv_grid_id }}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center; padding:24px; color:var(--color-text-muted);">No MV grids uploaded yet. Upload a JSON file above to get started.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /pane-grids -->
+
+<!-- PF Data Generation tab -->
+<div class="dash-pane" id="pane-pfdatagen">
+
+  <div class="panel">
+    <h3>Power Flow Data Generation</h3>
+    <p>
+      Generates large amounts of realistic power-flow training data for one or more MV grids, by injecting
+      power/voltage curves from a <a href="/historical/ui">Historical database</a> at each grid's connection
+      points and solving the resulting power flow — including stressed, out-of-normal-limits states — without
+      needing an optimizer to invent a synthetic dispatch. Only the MV grid itself is ever solved: no LV-level
+      power flow is run, so the output is strictly the MV topology's P/V values and branch flows.
+    </p>
+    <p>
+      Each generated <em>scenario</em> is one timestamp from the chosen database's own shared timeline.
+      Optionally, that base scenario is then re-solved against one or more perturbed variants of the grid,
+      described below.
+    </p>
+    <ul style="margin:0; padding-left:20px; color:var(--color-text); font-size:13px; line-height:1.6;">
+      <li>
+        <strong>Data Source — MV:</strong> if the chosen database's series are tagged <code>MV</code>, every
+        connection point in the grid gets its own randomly-drawn series as its injection directly — no real
+        LV grid needs to be connected anywhere.
+      </li>
+      <li>
+        <strong>Data Source — LV:</strong> if tagged <code>LV</code>, only connection points that already
+        have a real LV grid attached are populated; for each one, as many LV series as that LV grid has nodes
+        are randomly drawn and <em>summed</em> to form the injection — synthetic per-node curves standing in
+        for real per-node measurements.
+      </li>
+      <li>
+        <strong>Data Source — Feeder:</strong> if tagged <code>Feeder</code>, the same connection points as
+        LV mode are used; the number of connected points determines how many feeder series are drawn (one per
+        point, distinct where possible) and used directly as that point's injection.
+      </li>
+      <li>
+        <strong>Total Timesteps / Reassignment Period:</strong> Total Timesteps picks how many timestamps from
+        the database's shared timeline to use as scenarios. Reassignment Period then groups those scenarios,
+        in timestamp order, into blocks of that many — every block gets its own random series-to-point
+        assignment, so e.g. a Total Timesteps of 1000 with a Reassignment Period of 100 produces 10 different
+        random assignments across the run, not one fixed mapping throughout. A database mixing more than one
+        grid_level among its series can't be used; upload homogeneous databases per source type.
+      </li>
+      <li>
+        <strong>Topology Perturbation — None:</strong> solve every scenario once, against the grid's real,
+        unmodified topology only.
+      </li>
+      <li>
+        <strong>Topology Perturbation — Exhaustive N-k:</strong> systematically enumerates <em>every</em>
+        possible combination of up to <code>k</code> branches being simultaneously taken out of service
+        (every single-branch outage, then every pair, and so on up to <code>k</code>) and solves each
+        scenario against every one of those variants — a complete contingency sweep. Because these grids are
+        radial (tree-shaped), disabling a branch always islands everything downstream of it; that islanded
+        subtree is simply excluded from that variant's results rather than discarding the whole variant. The
+        number of variants grows combinatorially with <code>k</code>, so a very large <code>k</code> on a
+        big grid may be rejected as infeasible — use Random instead in that case.
+      </li>
+      <li>
+        <strong>Topology Perturbation — Random:</strong> instead of enumerating every combination, randomly
+        samples a chosen number of outage combinations (1 to <code>k</code> branches at a time). Useful when
+        a grid has too many branches for exhaustive enumeration to be practical.
+      </li>
+      <li>
+        <strong>Admittance Perturbation:</strong> independently redraws every branch's resistance and
+        reactance within &plusmn;sigma of its real, original value — modelling parameter uncertainty (aging
+        equipment, imprecise cable/line specs), layered on top of whichever topology variant is being solved.
+      </li>
+      <li>
+        <strong>Load Noise (sigma):</strong> optional per-bus multiplicative noise added on top of whichever
+        value was assigned, for extra scenario diversity beyond the source data alone.
+      </li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h4>1. Select grids</h4>
+    <div class="grids-search">
+      <input type="text" id="pfGridSearch" placeholder="Search grids..." oninput="pfFilterGridChecklist()">
+    </div>
+    <div class="row-actions" style="margin-bottom:10px;">
+      <button type="button" class="btn" onclick="pfSelectAllVisible()">Select all (filtered)</button>
+      <button type="button" class="btn" onclick="pfClearSelection()">Clear selection</button>
+    </div>
+    <div id="pfGridChecklist" style="max-height:280px; overflow-y:auto; border:1px solid var(--color-border); border-radius:var(--radius-md); padding:10px;">
+      {% for g in mv_grids %}
+      <label class="pf-grid-row" data-grid-id="{{ g.mv_grid_id | lower }}" style="display:block; padding:4px 2px; font-weight:normal; cursor:pointer;">
+        <input type="checkbox" class="pfGridCheckbox" value="{{ g.mv_grid_id }}" onchange="pfUpdateSelectedCount()">
+        <strong>{{ g.mv_grid_id }}</strong>{% if g.name %} — {{ g.name }}{% endif %}
+        <span class="muted">({{ g.n_nodes }} nodes, {{ g.n_connected }} connected LV)</span>
+      </label>
+      {% else %}
+      <p class="muted">No MV grids yet — upload one on the Grids tab first.</p>
+      {% endfor %}
+    </div>
+    <p class="muted" id="pfSelectedCount" style="margin-top:8px;">0 grids selected</p>
+  </div>
+
+  <div class="panel">
+    <h4>2. Data source</h4>
+    <div class="field">
+      <label style="min-width:160px;">Historical database</label>
+      <select id="pfHistoricalDatabase" class="input" style="width:320px;">
+        <option value="">Loading databases...</option>
+      </select>
+    </div>
+    <p class="muted" id="pfHistoricalDatabaseInfo" style="margin:4px 0 0;"></p>
+    <div class="field" style="margin-top:8px;">
+      <label style="min-width:160px;" title="How many timestamps from the chosen database's shared timeline to use as scenarios.">Total Timesteps</label>
+      <input id="pfScenarioCount" class="input" type="number" value="1000" min="1" max="200000" style="width:160px;">
+    </div>
+    <div class="field" style="margin-top:8px;">
+      <label style="min-width:160px;" title="How many consecutive scenarios (in timestamp order) share one random series-to-point assignment before it's redrawn.">Reassignment Period (timesteps)</label>
+      <input id="pfReassignmentPeriod" class="input" type="number" value="100" min="1" step="1" style="width:160px;">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h4>3. Configure perturbation</h4>
+    <form id="pfDatagenForm">
+      <div class="field">
+        <label style="min-width:160px;">Load Noise (sigma)</label>
+        <input id="pfLoadNoiseSigma" class="input" type="number" value="0" step="0.05" min="0" max="0.9" style="width:160px;">
+      </div>
+
+      <div class="field">
+        <label style="min-width:160px;">Topology Perturbation</label>
+        <select id="pfTopologyType" class="input" style="width:220px;" onchange="pfDatagenToggleTopologyFields()">
+          <option value="none" selected>None</option>
+          <option value="n_minus_k">Exhaustive N-k</option>
+          <option value="random">Random</option>
+        </select>
+      </div>
+      <div id="pfTopologyFields" style="display:none;">
+        <div class="field">
+          <label style="min-width:160px;" title="No fixed upper bound -- for Exhaustive N-k, an infeasibly large k/branch-count combination is rejected with a clear error instead.">Max simultaneous outages (k)</label>
+          <input id="pfTopologyK" class="input" type="number" value="1" min="1" style="width:160px;">
+        </div>
+        <div class="field" id="pfNVariantsField">
+          <label style="min-width:160px;">Random variants</label>
+          <input id="pfNVariants" class="input" type="number" value="10" min="1" max="2000" style="width:160px;">
+        </div>
+      </div>
+
+      <div class="field">
+        <label style="min-width:160px;">Admittance Perturbation</label>
+        <input type="checkbox" id="pfAdmittanceEnabled" onchange="document.getElementById('pfAdmittanceSigmaField').style.display = this.checked ? 'flex' : 'none';">
+      </div>
+      <div class="field" id="pfAdmittanceSigmaField" style="display:none;">
+        <label style="min-width:160px;">Sigma</label>
+        <input id="pfAdmittanceSigma" class="input" type="number" value="0.2" step="0.05" min="0.01" max="0.9" style="width:160px;">
+      </div>
+
+      <details style="margin-top:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:var(--color-accent);">Advanced</summary>
+        <div class="field">
+          <label style="min-width:160px;">Chunk commit size</label>
+          <input id="pfChunkCommitSize" class="input" type="number" value="100" min="1" max="5000" style="width:160px;">
+        </div>
+        <div class="field">
+          <label style="min-width:160px;">Seed (optional)</label>
+          <input id="pfSeed" class="input" type="number" style="width:160px;">
+        </div>
+      </details>
+
+      <div class="field" style="margin-top:12px;">
+        <button id="pfStartBtn" class="btn btn-primary" type="submit">Start Run(s)</button>
+      </div>
+      <p class="muted" id="pfDatagenMsg"></p>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h4>Runs</h4>
+    <table class="data-table" id="pfRunsTable">
+      <thead>
+        <tr><th>Run ID</th><th>MV Grid</th><th>Status</th><th>Scenarios</th><th>Variants</th><th>Created</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="pfRunsTableBody">
+        {% for run in pf_datagen_runs %}
+        <tr id="pfRunRow-{{ run.run_id }}">
+          <td><strong>{{ run.run_id }}</strong></td>
+          <td><a href="/mv_grid/ui/{{ run.mv_grid_id }}">{{ run.mv_grid_id }}</a></td>
+          <td><span id="pfRunStatus-{{ run.run_id }}">{{ run.status }}</span></td>
+          <td>{{ run.completed_scenarios }}/{{ run.total_scenarios }}</td>
+          <td>{{ run.n_topology_variants }}</td>
+          <td>{{ run.created_at[:16] }}</td>
+          <td>
+            <button class="btn btn-primary" style="height:28px; padding:0 10px; font-size:11px;" onclick="viewPFResults('{{ run.run_id }}')">View Results</button>
+          </td>
+        </tr>
+        {% else %}
+        <tr id="pfRunsEmptyRow"><td colspan="7" style="text-align:center; padding:16px; color:var(--color-text-muted);">No runs yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="pfResultsSection" style="display:none;">
+    <h3>PF Run Results: <span id="pfResultsRunId"></span></h3>
+    <p class="muted" id="pfResultsInfo"></p>
+    <div id="pfVoltageChart" style="width:100%;height:360px;"></div>
+    <div id="pfViolationChart" style="width:100%;height:300px; margin-top:12px;"></div>
+    <p class="muted" id="pfExportLinks"></p>
+  </div>
+
+</div><!-- /pane-pfdatagen -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterGridTable() {
+  var q = document.getElementById('gridSearch').value.toLowerCase();
+  document.querySelectorAll('#gridsTable tbody tr').forEach(function (row) {
+    var id = row.getAttribute('data-grid-id') || '';
+    row.style.display = id.indexOf(q) !== -1 ? '' : 'none';
+  });
+}
+
+var gridSortDir = {};
+function sortGridTable(key, type, th) {
+  var tbody = document.querySelector('#gridsTable tbody');
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'))
+    .filter(function (r) { return r.hasAttribute('data-grid-id'); });
+  if (!rows.length) { return; }
+
+  var dir = gridSortDir[key] === 'asc' ? 'desc' : 'asc';
+  gridSortDir = {}; gridSortDir[key] = dir;
+  var mult = dir === 'asc' ? 1 : -1;
+  var attr = 'data-' + key;
+
+  rows.sort(function (a, b) {
+    var av = a.getAttribute(attr) || '';
+    var bv = b.getAttribute(attr) || '';
+    if (type === 'num') {
+      return ((parseFloat(av) || 0) - (parseFloat(bv) || 0)) * mult;
+    }
+    // text and date: numeric-aware locale compare (ISO dates sort correctly)
+    return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' }) * mult;
+  });
+
+  rows.forEach(function (r) { tbody.appendChild(r); });
+  document.querySelectorAll('#gridsTable thead th.sortable').forEach(function (h) {
+    h.classList.remove('sorted-asc', 'sorted-desc');
+  });
+  th.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+}
+
+// ── Tabs ──
+document.querySelectorAll('.dash-tab').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    document.querySelectorAll('.dash-tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('.dash-pane').forEach(function (p) { p.classList.remove('active'); });
+    tab.classList.add('active');
+    document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
+  });
+});
+if (location.hash === '#pfdatagen') {
+  document.querySelector('.dash-tab[data-tab="pfdatagen"]').click();
+}
+</script>
+<script src="/static/js/mv-graph.js"></script>
+<script src="/static/js/mv-grid-list.js"></script>
+<script src="/static/js/pf-datagen-dashboard.js"></script>
+{% endblock %}

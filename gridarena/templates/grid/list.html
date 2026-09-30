@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<style>
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable .sort-arrow { margin-left: 4px; font-size: .8em; }
+  th.sortable .sort-arrow::after { content: '\2195'; opacity: .35; }
+  th.sortable.sorted-asc .sort-arrow::after { content: '\25B2'; opacity: 1; }
+  th.sortable.sorted-desc .sort-arrow::after { content: '\25BC'; opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="grid-dash-header">
+    <div>
+      <h2>Low Voltage Grids</h2>
+      <p>Upload, validate, inspect and manage low-voltage grid specifications.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="grid-summary-cards">
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ items | length }}</div>
+    <div class="grid-summary-card__label">Total LV Grids</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ total_nodes }}</div>
+    <div class="grid-summary-card__label">Total Nodes</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ items | selectattr('has_historical') | list | length }}</div>
+    <div class="grid-summary-card__label">With Historical Data</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ items[-1].grid_id if items else '—' }}</div>
+    <div class="grid-summary-card__label">Latest Grid</div>
+  </div>
+</div>
+
+<!-- Upload card -->
+<div class="upload-card">
+  <h3>Upload LV Grid JSON</h3>
+  <p class="upload-card__desc">Upload a JSON file defining topology, nodes, cables and connections. The grid_id is read from the file.</p>
+
+  <form id="uploadForm">
+    <input id="fileInput" type="file" accept=".json,application/json" hidden>
+    <div id="drop" class="drop" role="button" tabindex="0">
+      <div class="icon">&#11014;</div>
+      <div class="drop__title">Drop JSON here or click to choose<br><span class="muted">Accepted: .json</span></div>
+      <div class="drop__label muted" id="fileLabel">No file selected</div>
+    </div>
+
+    <!-- Advanced options -->
+    <details class="advanced-accordion">
+      <summary>Advanced Options</summary>
+      <div class="advanced-accordion__body">
+        <div class="advanced-accordion__hint">Configure use-case flags and benchmark metadata for this grid.</div>
+        <div class="field">
+          <label for="sel_phase" style="min-width:180px;" title="Whether this grid should be available for phase identification benchmark.">Phase detection</label>
+          <select id="sel_phase" class="select">
+            <option value="NONE">NONE</option>
+            <option value="TEST">Test</option>
+            <option value="TRAIN">Train</option>
+            <option value="TEST_TRAIN">Test + Train</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sel_topology" style="min-width:180px;" title="Whether this grid should be available for topology discovery benchmark.">Topology detection</label>
+          <select id="sel_topology" class="select">
+            <option value="NONE">NONE</option>
+            <option value="TEST">Test</option>
+            <option value="TRAIN">Train</option>
+            <option value="TEST_TRAIN">Test + Train</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sel_voltage" style="min-width:180px;" title="Whether this grid should be available for voltage control benchmark.">Voltage control</label>
+          <select id="sel_voltage" class="select">
+            <option value="NONE">NONE</option>
+            <option value="TEST">Test</option>
+            <option value="TRAIN">Train</option>
+            <option value="TEST_TRAIN">Test + Train</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sel_state" style="min-width:180px;" title="Whether this grid should be available for state estimation benchmark.">State estimation</label>
+          <select id="sel_state" class="select">
+            <option value="NONE">NONE</option>
+            <option value="TEST">Test</option>
+            <option value="TRAIN">Train</option>
+            <option value="TEST_TRAIN">Test + Train</option>
+          </select>
+        </div>
+      </div>
+    </details>
+
+    <div class="field" style="margin-top:14px;">
+      <button id="validateBtn" class="btn btn-primary" type="button" disabled>Validate JSON</button>
+      <button id="uploadBtn" class="btn btn-success" type="button" disabled style="display:none;">Upload Grid</button>
+    </div>
+    <p class="muted" id="uploadMsg"></p>
+  </form>
+
+  <div id="previewSection" style="display:none; margin-top:16px;">
+    <h4>Validation Preview</h4>
+    <div id="previewErrors" style="color:#dc2626;"></div>
+    <table class="data-table" id="previewTable" style="max-width:600px;"></table>
+    <div id="previewGraph" style="width:100%; height:420px; margin-top:14px;"></div>
+  </div>
+</div>
+
+<!-- Existing grids table -->
+<div class="panel grids-section">
+  <h3>Existing LV Grids</h3>
+  <p class="grids-section__desc">Inspect, simulate and manage uploaded LV grid assets.</p>
+
+  <div class="grids-search">
+    <input type="text" id="gridSearch" placeholder="Search grids..." oninput="filterGridTable()">
+  </div>
+
+  <table class="data-table" id="gridsTable">
+    <thead>
+      <tr>
+        <th class="sortable" onclick="sortGridTable('grid-id', this)">Grid ID <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('nodes', this)">Nodes <span class="sort-arrow"></span></th>
+        <th>Connections</th>
+        <th class="sortable" onclick="sortGridTable('data', this)">Data <span class="sort-arrow"></span></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in items %}
+      <tr data-grid-id="{{ g.grid_id | lower }}" data-nodes="{{ g.n_nodes }}" data-has-data="{{ 1 if g.has_historical else 0 }}">
+        <td>
+          <a href="/grid/ui/{{ g.grid_id }}"><strong>{{ g.grid_id }}</strong></a>
+          <span class="badge badge--lv">LV</span>
+        </td>
+        <td>{{ g.n_nodes }}</td>
+        <td>{{ g.n_connections }}</td>
+        <td>
+          {% if g.has_historical %}
+          <span class="badge badge--hist">Historical</span>
+          {% else %}
+          <span class="badge badge--no-hist">No data</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            <a href="/grid/ui/{{ g.grid_id }}" class="btn btn-primary">View</a>
+            <a href="/measurements/ui/{{ g.grid_id }}" class="btn btn-primary">Measurements</a>
+            <a href="/powerflow/ui" class="btn btn-primary">Power Flow</a>
+            <button class="btn-sm-danger" onclick="deleteGrid('{{ g.grid_id }}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="text-align:center; padding:24px; color:#6b7280;">No LV grids uploaded yet. Upload a JSON file above to get started.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterGridTable() {
+  var q = document.getElementById('gridSearch').value.toLowerCase();
+  document.querySelectorAll('#gridsTable tbody tr').forEach(function (row) {
+    var id = row.getAttribute('data-grid-id') || '';
+    row.style.display = id.indexOf(q) !== -1 ? '' : 'none';
+  });
+}
+
+var gridSortDir = {};
+function sortGridTable(key, th) {
+  var tbody = document.querySelector('#gridsTable tbody');
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'))
+    .filter(function (r) { return r.hasAttribute('data-grid-id'); });
+  if (!rows.length) { return; }
+
+  var dir = gridSortDir[key] === 'asc' ? 'desc' : 'asc';
+  gridSortDir = {}; gridSortDir[key] = dir;
+  var mult = dir === 'asc' ? 1 : -1;
+
+  rows.sort(function (a, b) {
+    if (key === 'nodes' || key === 'data') {
+      var attr = key === 'nodes' ? 'data-nodes' : 'data-has-data';
+      var av = parseInt(a.getAttribute(attr), 10) || 0;
+      var bv = parseInt(b.getAttribute(attr), 10) || 0;
+      return (av - bv) * mult;
+    }
+    // grid-id: alphabetic, but numeric-aware so 3118 < 3119 < 31100
+    var as = a.getAttribute('data-grid-id') || '';
+    var bs = b.getAttribute('data-grid-id') || '';
+    return as.localeCompare(bs, undefined, { numeric: true, sensitivity: 'base' }) * mult;
+  });
+
+  rows.forEach(function (r) { tbody.appendChild(r); });
+
+  document.querySelectorAll('#gridsTable thead th.sortable').forEach(function (h) {
+    h.classList.remove('sorted-asc', 'sorted-desc');
+  });
+  th.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+}
+</script>
+<script src="/static/js/grid-list.js"></script>
+{% endblock %}

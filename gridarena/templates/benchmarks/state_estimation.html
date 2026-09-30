@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/benchmark-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="bench-header">
+    <h2>State Estimation Benchmark</h2>
+    <p>Download training data, request estimation inputs, submit voltage predictions and evaluate estimation accuracy.</p>
+  </div>
+</div>
+
+<div class="bench-summary">
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scNoise">clean</div>
+    <div class="bench-summary-card__label">Noise Difficulty</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scObs">medium</div>
+    <div class="bench-summary-card__label">Observability</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scSubmission">Not submitted</div>
+    <div class="bench-summary-card__label">Last Submission</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scScore">—</div>
+    <div class="bench-summary-card__label">Last Score (SSE)</div>
+  </div>
+</div>
+
+<div class="bench-setup">
+  <h3>Benchmark Setup</h3>
+  <div class="field">
+    <label title="Your unique identifier for submissions and scoring.">User ID</label>
+    <input class="input" type="text" id="userId" placeholder="Enter your User ID" style="width:220px;">
+  </div>
+  <div class="field">
+    <label title="The estimation task identifier returned when downloading estimation input.">Estimation Task ID</label>
+    <input class="input" type="text" id="estimationId" placeholder="Enter Estimation Task ID" style="width:220px;">
+  </div>
+  <div class="field">
+    <label title="Controls the noise/corruption level applied to measurements.">Noise Difficulty</label>
+    <select id="noiseSelect" class="input" style="width:220px;" onchange="document.getElementById('scNoise').textContent = this.value;">
+      <option value="clean" selected>clean</option>
+      <option value="easy">easy</option>
+      <option value="medium">medium</option>
+      <option value="hard">hard</option>
+    </select>
+  </div>
+  <div class="field">
+    <label title="Controls how many nodes are unknown and how much history is visible.">Observability</label>
+    <select id="obsSelect" class="input" style="width:220px;" onchange="document.getElementById('scObs').textContent = this.value;">
+      <option value="clean">clean</option>
+      <option value="easy">easy</option>
+      <option value="medium" selected>medium</option>
+      <option value="hard">hard</option>
+    </select>
+  </div>
+</div>
+
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">1</div>
+    <h4 class="bench-step__title">Download Benchmark Data</h4>
+  </div>
+  <p class="bench-step__desc">Download training data (all voltages known) and estimation input (some nodes masked) for algorithm development.</p>
+  <div class="field">
+    <button class="btn-secondary" type="button" id="btnDownloadTrain" title="Training data with all node voltages visible.">Download Training Dataset</button>
+    <button class="btn btn-primary" type="button" id="btnDownloadInput" title="Estimation input with unknown nodes. Requires User ID.">Download Estimation Input</button>
+  </div>
+  <p class="muted" id="downloadMsg"></p>
+</div>
+
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">2</div>
+    <h4 class="bench-step__title">Submit Estimates</h4>
+  </div>
+  <p class="bench-step__desc">Upload a JSON file containing your estimated voltage magnitude and angle for each masked node.</p>
+  <input id="estimateFile" type="file" accept=".json" hidden>
+  <div id="estimateDrop" class="drop" role="button" tabindex="0">
+    <div class="icon">&#11014;</div>
+    <div class="drop__title">Drop estimate JSON here or click to choose<br><span class="muted">Accepted: .json</span></div>
+    <div class="drop__label muted" id="estimateFileLabel">No file selected</div>
+  </div>
+  <div class="field" style="margin-top:12px;">
+    <button class="btn btn-primary" type="button" id="btnSubmit" disabled>Submit Estimates</button>
+  </div>
+  <p class="muted" id="uploadMsg"></p>
+  <div class="bench-result" id="submitResult">
+    <h4>Submission Received</h4>
+    <p class="muted" id="submitResultMsg"></p>
+  </div>
+</div>
+
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">3</div>
+    <h4 class="bench-step__title">Evaluate Score</h4>
+  </div>
+  <p class="bench-step__desc">Compute the sum of squared errors between your estimates and the true voltage values.</p>
+  <div class="field">
+    <button class="btn btn-primary" type="button" id="btnScore">Check Score</button>
+  </div>
+  <div class="bench-result" id="scoreResult">
+    <h4>Score Results</h4>
+    <table id="scoreTable"></table>
+  </div>
+  <div class="bench-result bench-result--error" id="scoreError">
+    <h4>Error</h4>
+    <p class="muted" id="scoreErrorMsg"></p>
+  </div>
+</div>
+
+<details class="bench-hint">
+  <summary>Estimate JSON Format</summary>
+  <div class="bench-hint__body">
+    <p>The estimate file should contain <code>grid_id</code>, <code>timestamp</code>, and <code>estimates</code> (a list of objects):</p>
+    <pre>{
+  "grid_id": "masked_grid_abc",
+  "timestamp": "2025-07-01T12:00:00",
+  "estimates": [
+    {"masked_node_id": "m_node_1", "voltage_magnitude": 229.5, "voltage_angle": 0.02},
+    {"masked_node_id": "m_node_2", "voltage_magnitude": 228.1, "voltage_angle": -0.01}
+  ]
+}</pre>
+    <p>See <a href="/docs">API Docs</a> for the full schema specification.</p>
+  </div>
+</details>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/benchmark-state.js"></script>
+{% endblock %}

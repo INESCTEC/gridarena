@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+  <div class="section-title">
+    {% if run.job_type == 'privacy_check' %}Privacy Check Run
+    {% elif run.job_type == 'epoch_search' %}Epoch Search Run
+    {% else %}Diffusion Training Run{% endif %}
+  </div>
+  <p class="muted">Run <strong>{{ run.run_id }}</strong> &mdash; Architecture: <strong>{{ run.architecture or 'n/a' }}</strong> &mdash; Grids: {{ run.grid_ids | join(', ') }}</p>
+  <p><a href="/diffusion/ui">&larr; Back to Diffusion Models</a></p>
+</div>
+
+<section class="panel">
+  <h3>Status: <span id="runStatus">{{ run.status }}</span></h3>
+
+  <table class="data-table" style="max-width:500px;">
+    <tr><th>Job Type</th><td>{{ run.job_type }}</td></tr>
+    <tr><th>Architecture</th><td>{{ run.architecture or 'n/a' }}</td></tr>
+    <tr><th>Grids</th><td>{{ run.grid_ids | join(', ') }}</td></tr>
+    <tr><th>Epochs</th><td>{{ run.num_epochs }}</td></tr>
+    <tr><th>Dataset Size</th><td>{{ run.dataset_size }} days</td></tr>
+    <tr><th>Created</th><td>{{ run.created_at[:19] }}</td></tr>
+    {% if run.completed_at %}
+    <tr><th>Completed</th><td>{{ run.completed_at[:19] }}</td></tr>
+    {% endif %}
+    {% if run.error %}
+    <tr><th>Error</th><td style="color:#dc2626;">{{ run.error }}</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+{# ─────────────────────────── TRAIN ─────────────────────────── #}
+{% if run.job_type == 'train' and run.metrics %}
+<section class="panel">
+  <h3>Metrics</h3>
+  <table class="data-table" style="max-width:500px;">
+    {% if run.metrics.final_loss is not none %}
+    <tr><th>Final Loss</th><td>{{ "%.6f"|format(run.metrics.final_loss) }}</td></tr>
+    {% endif %}
+    <tr><th>Global Steps</th><td>{{ run.metrics.global_steps }}</td></tr>
+    {% if run.metrics.image_size %}
+    <tr><th>Image Size</th><td>{{ run.metrics.image_size | join(' x ') }}</td></tr>
+    {% endif %}
+    {% if run.metrics.dataset_shape %}
+    <tr><th>Dataset Shape</th><td>{{ run.metrics.dataset_shape | join(' x ') }}</td></tr>
+    {% endif %}
+  </table>
+
+  {% if run.metrics.dp_epsilon is defined and run.metrics.dp_epsilon is not none %}
+  <h3 style="margin-top:16px;">Differential Privacy</h3>
+  <table class="data-table" style="max-width:500px;">
+    <tr title="Total privacy budget spent. Lower is more private."><th>Epsilon (&epsilon;)</th><td>{{ "%.4f"|format(run.metrics.dp_epsilon) }}</td></tr>
+    <tr title="Probability of a privacy breach."><th>Delta (&delta;)</th><td>{{ "%.2e"|format(run.metrics.dp_delta) }}</td></tr>
+    <tr title="Per-sample gradient clipping bound."><th>Max Grad Norm</th><td>{{ run.metrics.dp_max_grad_norm }}</td></tr>
+    <tr title="Gaussian noise scale added to clipped gradients."><th>Noise Multiplier</th><td>{{ run.metrics.dp_noise_multiplier }}</td></tr>
+  </table>
+  {% endif %}
+</section>
+{% endif %}
+
+{# ─────────────────────── PRIVACY CHECK ─────────────────────── #}
+{% if run.job_type == 'privacy_check' and privacy_report %}
+<section class="panel">
+  <h3>Privacy Audit Result:
+    <span class="status-badge status-badge--{{ 'completed' if privacy_report.overall_passed else 'failed' }}">
+      {{ 'PASSED' if privacy_report.overall_passed else 'FLAGGED' }}
+    </span>
+  </h3>
+  <p class="muted" style="max-width:760px;">{{ privacy_report.warning }}</p>
+
+  <h4 style="margin-top:14px;">Membership Inference (loss-threshold attack)</h4>
+  <table class="data-table" style="max-width:560px;">
+    <tr title="P(a random training member scores higher than a non-member). 0.5 = no leakage."><th>ROC AUC</th><td>{{ "%.3f"|format(privacy_report.membership_inference.auc) }}</td></tr>
+    <tr><th>AUC 95% CI</th><td>[{{ "%.3f"|format(privacy_report.membership_inference.auc_ci_95[0]) }}, {{ "%.3f"|format(privacy_report.membership_inference.auc_ci_95[1]) }}]</td></tr>
+    <tr><th>Pass threshold</th><td>AUC &le; {{ privacy_report.membership_inference.pass_threshold }}</td></tr>
+    <tr><th>Result</th><td>{{ 'PASS' if privacy_report.membership_inference.passed else 'FAIL' }}</td></tr>
+  </table>
+  <p class="muted" style="font-size:12px;">{{ privacy_report.membership_inference.note }}</p>
+  <img src="/diffusion/runs/{{ run.run_id }}/figure/mi_loss_distributions.png" alt="MI loss distributions" style="max-width:100%; margin-top:8px; border:1px solid #e5e7eb; border-radius:6px;">
+
+  <h4 style="margin-top:20px;">Canary Memorisation</h4>
+  <table class="data-table" style="max-width:560px;">
+    <tr><th>Canaries injected</th><td>{{ privacy_report.num_canaries }}</td></tr>
+    <tr><th>Canaries flagged as memorised</th><td>{{ privacy_report.canary_memorisation.canaries_below_p5 | select | list | length }}</td></tr>
+    <tr><th>Result</th><td>{{ 'PASS' if privacy_report.canary_memorisation.passed else 'FAIL' }}</td></tr>
+  </table>
+  <img src="/diffusion/runs/{{ run.run_id }}/figure/canary_nn_distances.png" alt="Canary NN distances" style="max-width:100%; margin-top:8px; border:1px solid #e5e7eb; border-radius:6px;">
+</section>
+{% elif run.job_type == 'privacy_check' and run.status == 'completed' %}
+<section class="panel"><p class="muted">Privacy report not found for this run.</p></section>
+{% endif %}
+
+{# ─────────────────────── EPOCH SEARCH ──────────────────────── #}
+{% if run.job_type == 'epoch_search' and epoch_report %}
+<section class="panel">
+  <h3>Best Epoch: <strong>{{ epoch_report.best_epoch }}</strong> <span class="muted">(of {{ epoch_report.max_epochs_trained }} trained)</span></h3>
+  <p class="muted" style="max-width:760px;">{{ epoch_report.methodology }}</p>
+
+  <h4 style="margin-top:14px;">Best-epoch validation metrics</h4>
+  <table class="data-table" style="max-width:560px;">
+    {% for k, v in epoch_report.best_epoch_final_metrics.items() %}
+    <tr><th>{{ k }}</th><td>{{ "%.5f"|format(v) }}</td></tr>
+    {% endfor %}
+  </table>
+  <img src="/diffusion/runs/{{ run.run_id }}/figure/metrics_vs_epoch.png" alt="Metrics vs epoch" style="max-width:100%; margin-top:8px; border:1px solid #e5e7eb; border-radius:6px;">
+
+  <h4 style="margin-top:20px;">Per-checkpoint scores</h4>
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead><tr><th>Epoch</th><th>Composite</th><th>Temporal Frob</th><th>Spatial Frob</th><th>ACF MAE</th><th>Mean MAE</th><th>Std MAE</th></tr></thead>
+      <tbody>
+        {% for h in epoch_report.history %}
+        <tr{% if h.epoch == epoch_report.best_epoch %} style="font-weight:600; background:#f0fdf4;"{% endif %}>
+          <td>{{ h.epoch }}</td>
+          <td>{{ "%.4f"|format(h.composite_score) }}</td>
+          <td>{{ "%.4f"|format(h.temporal_frobenius) }}</td>
+          <td>{{ "%.4f"|format(h.spatial_frobenius) }}</td>
+          <td>{{ "%.4f"|format(h.acf_mae) }}</td>
+          <td>{{ "%.4f"|format(h.mean_mae) }}</td>
+          <td>{{ "%.4f"|format(h.std_mae) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% elif run.job_type == 'epoch_search' and run.status == 'completed' %}
+<section class="panel"><p class="muted">Epoch-search report not found for this run.</p></section>
+{% endif %}
+
+{# ─────────────────── MODEL ACTIONS (train / epoch search) ──────────────── #}
+{% if run.status == 'completed' and run.job_type in ['train', 'epoch_search'] %}
+<section class="panel">
+  <h3>Actions</h3>
+  <div class="field">
+    <a href="/diffusion/runs/{{ run.run_id }}/model" class="btn btn-primary">Download Model</a>
+    <button id="genBtn" class="btn btn-success" type="button">Generate Snapshot</button>
+  </div>
+  <p class="muted" id="genMsg"></p>
+</section>
+
+<section class="panel" id="genSection" style="display:none;">
+  <h3>Generated Snapshot</h3>
+  <p class="muted" id="genSummary"></p>
+  <div id="genHeatmap" style="width:100%;height:450px;"></div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var status = '{{ run.status }}';
+  var runId = '{{ run.run_id }}';
+
+  if (status === 'queued' || status === 'running') {
+    var interval = setInterval(async function () {
+      try {
+        var res = await fetch('/diffusion/runs/' + runId);
+        var data = await res.json();
+        document.getElementById('runStatus').textContent = data.status;
+        if (data.status === 'completed' || data.status === 'failed') {
+          clearInterval(interval);
+          location.reload();
+        }
+      } catch (e) {}
+    }, 5000);
+  }
+
+  var genBtn = document.getElementById('genBtn');
+  if (genBtn) {
+    genBtn.addEventListener('click', async function () {
+      var msg = document.getElementById('genMsg');
+      msg.textContent = 'Generating snapshot (this may take a while)...';
+      genBtn.disabled = true;
+
+      try {
+        var res = await fetch('/diffusion/generate/' + runId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ num_inference_steps: 1000 })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Generation failed');
+
+        msg.textContent = '';
+        document.getElementById('genSection').style.display = 'block';
+        document.getElementById('genSummary').textContent =
+          data.n_nodes + ' nodes x ' + data.n_timesteps + ' timesteps'
+          + ' | mean=' + data.summary.mean.toFixed(2)
+          + ' std=' + data.summary.std.toFixed(2)
+          + ' range=[' + data.summary.min.toFixed(2) + ', ' + data.summary.max.toFixed(2) + ']';
+
+        function renderHeatmap() {
+          Plotly.newPlot('genHeatmap', [{
+            z: data.snapshot,
+            type: 'heatmap',
+            colorscale: 'RdBu',
+            reversescale: true,
+            colorbar: { title: 'Power (kW)' }
+          }], {
+            title: 'Generated Daily Power Snapshot',
+            xaxis: { title: 'Timestep' },
+            yaxis: { title: 'Node', autorange: 'reversed' },
+            plot_bgcolor: '#f8fafc',
+            paper_bgcolor: '#ffffff'
+          });
+        }
+
+        if (window.Plotly) {
+          renderHeatmap();
+        } else {
+          var s = document.createElement('script');
+          s.src = 'https://cdn.plot.ly/plotly-2.26.0.min.js';
+          s.onload = renderHeatmap;
+          document.head.appendChild(s);
+        }
+      } catch (e) {
+        msg.textContent = 'Error: ' + e.message;
+      } finally {
+        genBtn.disabled = false;
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

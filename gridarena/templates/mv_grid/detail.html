@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+  <div class="section-title">MV Grid</div>
+  <p class="muted">
+    <strong>{{ grid.mv_grid_id }}</strong>
+    {% if grid.name %} &mdash; {{ grid.name }}{% endif %}
+    &mdash; {{ grid.nominal_voltage_kv }} kV
+    {% if grid.region %} &mdash; {{ grid.region }}{% endif %}
+  </p>
+  <p><a href="/mv_grid/ui">&larr; Back to MV Grids</a></p>
+</div>
+
+<section class="panel">
+  <h3>Network Graph</h3>
+  <p class="muted">Click a <strong style="color:#10b981;">green connection point</strong> node to connect an LV grid.</p>
+  <div class="field" style="margin-bottom:8px;">
+    <label style="min-width:160px;" for="toggleNodeLabels">Show node labels</label>
+    <input type="checkbox" id="toggleNodeLabels" checked>
+  </div>
+  <div id="networkGraph" style="width:100%; height:520px;"></div>
+</section>
+
+<section class="panel">
+  <h3>Connection Points &amp; Transformers</h3>
+  <table class="data-table" id="cpTable">
+    <thead>
+      <tr><th>Point ID</th><th>Node</th><th>Name</th><th>Connected LV Grid</th><th>Transformer</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for cp in grid.connection_points %}
+      {% set connected = [] %}
+      {% for t in grid.transformers if t.connection_point_id == cp.connection_point_id and t.lv_grid_id %}
+      {% set _ = connected.append(t) %}
+      {% endfor %}
+
+      {% if connected %}
+        {% for t in connected %}
+        <tr>
+          <td>{{ cp.connection_point_id }}</td>
+          <td>{{ cp.node_id }}</td>
+          <td>{{ cp.name or '' }}</td>
+          <td><strong>{{ t.lv_grid_id }}</strong></td>
+          <td>{{ t.transformer_id }} ({{ t.rated_power_kva }} kVA)</td>
+          <td>
+            <button class="btn btn-danger" onclick="disconnectLV('{{ grid.mv_grid_id }}', '{{ cp.connection_point_id }}', '{{ t.lv_grid_id }}')">Disconnect</button>
+            <button class="btn btn-primary" onclick="viewPV('{{ grid.mv_grid_id }}', '{{ t.lv_grid_id }}')">View P/V</button>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td>{{ cp.connection_point_id }}</td>
+          <td>{{ cp.node_id }}</td>
+          <td>{{ cp.name or '' }}</td>
+          <td><em>Not connected</em></td>
+          <td>&mdash;</td>
+          <td><button class="btn btn-success" onclick="showConnectForm('{{ cp.connection_point_id }}')">Connect LV Grid</button></td>
+        </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <p class="muted">Want to generate bulk power-flow training data for this (or other) grids? That's now on the <a href="/mv_grid/ui#pfdatagen">MV Grids</a> page, under the "PF Data Generation" tab — you can run it across multiple grids at once from there.</p>
+</section>
+
+<section class="panel" id="connectSection" style="display:none;">
+  <h3>Connect LV Grid to: <span id="connectPointId"></span></h3>
+  <form id="connectForm">
+    <input type="hidden" id="connectCpId">
+    <div class="field">
+      <label style="min-width:160px;" title="Select an existing LV grid from the database to connect to this MV connection point.">LV Grid</label>
+      <select id="lvGridSelect" class="input" required>
+        <option value="">Select LV grid</option>
+        {% for gid in lv_grids %}
+        <option value="{{ gid }}">{{ gid }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label style="min-width:160px;" title="Rated apparent power capacity of the MV/LV transformer in kVA.">Rated Power (kVA)</label>
+      <input id="ratedPower" class="input" type="number" value="400" step="10" min="1">
+    </div>
+    <div class="field">
+      <label style="min-width:160px;" title="Primary (MV side) voltage in kV. Should match the MV grid nominal voltage.">Primary Voltage (kV)</label>
+      <input id="primaryVoltage" class="input" type="number" value="{{ grid.nominal_voltage_kv }}" step="0.1">
+    </div>
+    <div class="field">
+      <label style="min-width:160px;" title="Secondary (LV side) voltage in volts.">Secondary Voltage (V)</label>
+      <input id="secondaryVoltage" class="input" type="number" value="230" step="1">
+    </div>
+    <details style="margin-top:8px;">
+      <summary style="cursor:pointer; font-weight:600; color:#2563eb;">Transformer Impedance (optional)</summary>
+      <div class="field">
+        <label style="min-width:160px;">Impedance Real</label>
+        <input id="trImpReal" class="input" type="number" step="0.001">
+      </div>
+      <div class="field">
+        <label style="min-width:160px;">Impedance Imag</label>
+        <input id="trImpImag" class="input" type="number" step="0.001">
+      </div>
+    </details>
+    <div class="field" style="margin-top:12px;">
+      <button class="btn btn-primary" type="submit">Connect</button>
+      <button class="btn" type="button" onclick="document.getElementById('connectSection').style.display='none';">Cancel</button>
+    </div>
+    <p class="muted" id="connectMsg"></p>
+  </form>
+</section>
+
+<section class="panel" id="pvSection" style="display:none;">
+  <h3>Aggregated P/V Pairs: <span id="pvLvId"></span></h3>
+  <p class="muted" id="pvInfo"></p>
+  <div id="pvChart" style="width:100%;height:400px;"></div>
+</section>
+
+<details class="panel" style="margin-top:18px;">
+  <summary style="cursor:pointer; font-weight:600;">Nodes ({{ grid.nodes | length }}) &amp; Connections ({{ grid.connections | length }})</summary>
+  <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:12px;">
+    <div>
+      <h4>Nodes</h4>
+      <table class="data-table">
+        <thead><tr><th>Node ID</th><th>Type</th></tr></thead>
+        <tbody>
+          {% for n in grid.nodes %}
+          <tr><td>{{ n.node_id }}</td><td>{{ n.node_type or '' }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h4>Connections</h4>
+      <table class="data-table">
+        <thead><tr><th>ID</th><th>From</th><th>To</th><th>Cable</th><th>Length</th></tr></thead>
+        <tbody>
+          {% for c in grid.connections %}
+          <tr><td>{{ c.connection_id }}</td><td>{{ c.from_node_id }}</td><td>{{ c.to_node_id }}</td><td>{{ c.cable_id }}</td><td>{{ c.length }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.GRAPH_DATA = {{ graph_data | tojson }};
+  window.MV_GRID_ID = '{{ grid.mv_grid_id }}';
+</script>
+<script src="/static/js/mv-graph.js"></script>
+<script src="/static/js/mv-grid-detail.js"></script>
+{% endblock %}

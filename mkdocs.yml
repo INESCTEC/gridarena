@@ -1,0 +1,89 @@
+site_name: GridArena
+site_description: >-
+  Simulation and analytics API for low-voltage electrical distribution grids —
+  grid management, measurement and historical data, power flow simulation,
+  synthetic data generation, digital twins, and AI benchmark suites.
+site_url: https://lvg-play.readthedocs.io/
+repo_url: https://gitlab.inesctec.pt/cpes/european-projects/aieffect/gridarena
+repo_name: gridarena
+edit_uri: edit/main/docs/
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture: architecture.md
+  - Architecture Diagrams:
+      - Component Diagram: diagrams/component-diagram.md
+      - Benchmark Sequence Diagram: diagrams/benchmark-sequence-diagram.md
+  - Data Model: database-schema.md
+  - API Reference:
+      - Overview: api/index.md
+      - Grid: api/grid.md
+      - MV Grid: api/mv-grid.md
+      - Measurements: api/measurements.md
+      - Historical: api/historical.md
+      - Power Flow: api/powerflow.md
+      - Phase Identification Benchmark: api/phase-identification-benchmark.md
+      - Topology Discovery Benchmark: api/topology-discovery-benchmark.md
+      - State Estimation Benchmark: api/state-estimation-benchmark.md
+      - Voltage Control Benchmark: api/voltage-control-benchmark.md
+      - Digital Twin: api/digital-twin.md
+      - Diffusion Models: api/diffusion.md
+      - PF Data Generation: api/pf-datagen.md
+      - Reinforcement Learning: api/rl.md
+      - Chat: api/chat.md
+      - Offline Scenarios: api/offline-scenarios.md
+  - Contributing: contributing.md
+  - Security Policy: security.md
+  - License: license.md
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+
+plugins:
+  - search
+  - include-markdown

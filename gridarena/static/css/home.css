@@ -1,0 +1,168 @@
+/* ── Animated background canvas ── */
+
+.home-bg {
+  position: fixed;
+  top: 0;
+  left: 220px;
+  width: calc(100% - 220px);
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Header ── */
+
+.home-header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 32px 16px 8px;
+}
+
+.home-header h1 {
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+
+.home-header p {
+  color: var(--color-text-muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+/* ── Proof-of-value stats strip ── */
+
+.home-stats {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 0 4px;
+}
+
+.home-stat {
+  text-align: center;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.home-stat__value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--color-accent);
+  letter-spacing: -0.02em;
+}
+
+.home-stat__label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+/* ── Macro card grid ── */
+
+.macro-cards {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 24px 0;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1024px) {
+  .macro-cards {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+  }
+}
+
+/* ── Individual macro card ── */
+
+.macro-card {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.macro-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-accent);
+}
+
+.macro-card__icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.macro-card__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 6px;
+}
+
+.macro-card__desc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+/* ── Nested links inside each card ── */
+
+.macro-card__links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.macro-card__links a {
+  display: block;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--color-text);
+  background: var(--color-surface-sunken);
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.macro-card__links a:hover {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  transform: translateX(3px);
+  text-decoration: none;
+}
+
+.macro-card__links a strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-bottom: 2px;
+}
+
+.macro-card__links a span {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}

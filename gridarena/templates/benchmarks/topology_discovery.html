@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/benchmark-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="bench-header">
+    <h2>Topology Discovery Benchmark</h2>
+    <p>Download benchmark data, submit predicted grid topologies and evaluate reconstruction accuracy.</p>
+  </div>
+</div>
+
+<div class="bench-summary">
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scDifficulty">clean</div>
+    <div class="bench-summary-card__label">Selected Difficulty</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scDataset">Not downloaded</div>
+    <div class="bench-summary-card__label">Dataset Status</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scSubmission">Not submitted</div>
+    <div class="bench-summary-card__label">Last Submission</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scScore">—</div>
+    <div class="bench-summary-card__label">Last Score</div>
+  </div>
+</div>
+
+<div class="bench-setup">
+  <h3>Benchmark Setup</h3>
+  <div class="field">
+    <label title="Identifies your submission. Use different values to keep multiple attempts (e.g. alice_v1, alice_v2).">Submission ID</label>
+    <input class="input" type="text" id="userId" placeholder="e.g. alice_v1" style="width:220px;">
+  </div>
+  <div class="field">
+    <label title="The grid to evaluate topology discovery on.">Grid ID</label>
+    <select id="gridId" class="input" style="width:220px;">
+      <option value="" disabled selected>Select a grid...</option>
+      {% for g in grids %}
+      <option value="{{ g }}">{{ g }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label title="Controls the noise/corruption level applied to measurements.">Difficulty</label>
+    <select id="difficultySelect" class="input" style="width:220px;" onchange="document.getElementById('scDifficulty').textContent = this.value;">
+      <option value="clean" selected>clean</option>
+      <option value="easy">easy</option>
+      <option value="medium">medium</option>
+      <option value="hard">hard</option>
+    </select>
+  </div>
+</div>
+
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">1</div>
+    <h4 class="bench-step__title">Download Benchmark Data</h4>
+  </div>
+  <p class="bench-step__desc">Download training data (with visible topology) and hidden topology data (anonymised grid, topology hidden) for algorithm evaluation.</p>
+  <div class="field">
+    <button class="btn-secondary" type="button" id="btnDownloadTrain" title="Training data with true topology visible.">Download Training Dataset</button>
+    <button class="btn btn-primary" type="button" id="btnDownloadHidden" title="Anonymised test data with hidden topology.">Download Hidden Topology Data</button>
+  </div>
+  <p class="muted" id="downloadMsg"></p>
+</div>
+
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">2</div>
+    <h4 class="bench-step__title">Submit Predictions</h4>
+  </div>
+  <p class="bench-step__desc">Upload a JSON file containing your predicted topology as a list of edge pairs [node_i, node_j].</p>
+  <input id="guessFile" type="file" accept=".json" hidden>
+  <div id="guessDrop" class="drop" role="button" tabindex="0">
+    <div class="icon">&#11014;</div>
+    <div class="drop__title">Drop prediction JSON here or click to choose<br><span class="muted">Accepted: .json</span></div>
+    <div class="drop__label muted" id="guessFileLabel">No file selected</div>
+  </div>
+  <div class="field" style="margin-top:12px;">
+    <button class="btn btn-primary" type="button" id="btnSubmit" disabled>Submit Predictions</button>
+  </div>
+  <p class="muted" id="uploadMsg"></p>
+  <div class="bench-result" id="submitResult">
+    <h4>Submission Received</h4>
+    <p class="muted" id="submitResultMsg"></p>
+  </div>
+</div>
+
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">3</div>
+    <h4 class="bench-step__title">Evaluate Score</h4>
+  </div>
+  <p class="bench-step__desc">Check your topology reconstruction accuracy — correct edges, missed edges, and extra edges.</p>
+  <div class="field">
+    <button class="btn btn-primary" type="button" id="btnScore">Check Score</button>
+  </div>
+  <div class="bench-result" id="scoreResult">
+    <h4>Score Results</h4>
+    <table id="scoreTable"></table>
+  </div>
+  <div class="bench-result bench-result--error" id="scoreError">
+    <h4>Error</h4>
+    <p class="muted" id="scoreErrorMsg"></p>
+  </div>
+</div>
+
+<details class="bench-hint">
+  <summary>Prediction JSON Format</summary>
+  <div class="bench-hint__body">
+    <p>The prediction file should be a JSON object with <code>guess_id</code>, <code>grid_id</code>, and <code>guesses</code> (a list of edge pairs):</p>
+    <pre>{
+  "guesses": [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    ...
+  ]
+}</pre>
+    <p>Each edge is a pair of node indices <code>[from_index, to_index]</code>. See <a href="/docs">API Docs</a> for the full schema.</p>
+  </div>
+</details>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/benchmark-topology.js"></script>
+{% endblock %}

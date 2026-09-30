@@ -1,0 +1,65 @@
+{# Document-assistant widget: a site-wide floating chat launcher (bottom-right,
+   offset from the grid-assistant bubble), mirroring chat_widget.html. Opening
+   it drops you into an inline chat panel right here on the page -- a dropdown
+   at the top switches which assistant you're talking to. The dedicated full
+   page (chat/agent_page.html) is reached only via the "Open full page" link
+   inside the panel. #}
+<div id="doc-agent-widget" class="doc-agent-widget doc-agent-widget--collapsed">
+  <button id="doc-agent-toggle" class="doc-agent-toggle" type="button" title="Document Assistants"
+          data-doc-agent-open style="display:none;">
+    <span class="doc-agent-toggle__icon">&#128218;</span>
+  </button>
+
+  <div class="chat-panel doc-agent-panel">
+    <div class="chat-panel__header doc-agent-panel__header">
+      <select id="doc-agent-select" class="doc-agent-select">
+        <option value="">Loading…</option>
+      </select>
+      <div class="doc-agent-panel__actions">
+        <button type="button" id="doc-agent-delete" class="doc-agent-panel__icon-btn" title="Delete this assistant">&#128465;</button>
+        <a id="doc-agent-fullpage-link" href="/chat/agents/ui" class="doc-agent-panel__icon-btn" title="Open full page">&#8599;</a>
+        <button id="doc-agent-close" class="chat-panel__close" type="button">&times;</button>
+      </div>
+    </div>
+
+    {# ── Chat view ── #}
+    <div id="doc-agent-widget-chat" class="doc-agent-widget-view">
+      <div id="doc-agent-widget-messages" class="chat-panel__messages"></div>
+      <form id="doc-agent-widget-form" class="chat-panel__input">
+        <input type="text" id="doc-agent-widget-input" placeholder="Ask about these documents..." autocomplete="off">
+        <button class="btn btn-primary" type="submit">Send</button>
+      </form>
+    </div>
+
+    {# ── Empty state (no assistants yet) ── #}
+    <div id="doc-agent-widget-empty" class="doc-agent-widget-view doc-agent-widget-view--scroll" style="display:none;">
+      <p class="muted" style="font-size:12px;">No document assistants yet.</p>
+      <button type="button" class="btn btn-primary" id="doc-agent-empty-create">+ New Assistant</button>
+    </div>
+
+    {# ── Create view ── #}
+    <div id="doc-agent-widget-create" class="doc-agent-widget-view doc-agent-widget-view--scroll" style="display:none;">
+      <div class="field" style="margin-bottom:10px;">
+        <label>Name</label>
+        <input type="text" id="doc-agent-name" class="input" placeholder="e.g. Voltage Regulation Papers">
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Description</label>
+        <input type="text" id="doc-agent-desc" class="input" placeholder="What is this assistant about?">
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Documents</label>
+        <input type="file" id="doc-agent-files" accept=".md,.markdown" multiple class="input">
+        <p class="muted" style="font-size:11px; margin:4px 0 0;">
+          Markdown (.md) only. Convert PDFs or Word documents to Markdown first, and keep
+          their headings — answers cite the section they came from.
+        </p>
+      </div>
+      <div id="doc-agent-create-results" class="muted" style="font-size:11px; margin-bottom:8px;"></div>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button type="button" class="btn" id="doc-agent-create-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="doc-agent-create-submit">Create</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,222 @@
+/* ── LV Grid Dashboard ── */
+
+.grid-dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.grid-dash-header h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: var(--color-text);
+}
+
+.grid-dash-header p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ── Summary cards ── */
+
+.grid-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.grid-summary-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  text-align: center;
+}
+
+.grid-summary-card__value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.grid-summary-card__label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 2px;
+}
+
+/* ── Upload card ── */
+
+.upload-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.upload-card h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: var(--color-text);
+}
+
+.upload-card__desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 14px;
+}
+
+.upload-card .drop {
+  padding: 16px;
+  min-height: auto;
+}
+
+.upload-card .drop .icon {
+  font-size: 18px;
+}
+
+.upload-card .drop .drop__title {
+  font-size: 13px;
+}
+
+/* ── Advanced accordion ── */
+
+.advanced-accordion {
+  margin-top: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.advanced-accordion summary {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+  background: var(--color-surface-sunken);
+  border-bottom: 1px solid transparent;
+}
+
+.advanced-accordion[open] summary {
+  border-bottom-color: var(--color-border);
+}
+
+.advanced-accordion__body {
+  padding: 12px 14px;
+}
+
+.advanced-accordion__hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+}
+
+/* ── Grids table section ── */
+
+.grids-section h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: var(--color-text);
+}
+
+.grids-section__desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 12px;
+}
+
+.grids-search {
+  margin-bottom: 12px;
+}
+
+.grids-search input {
+  width: 260px;
+  height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  outline: none;
+}
+
+.grids-search input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+
+/* ── Badges ── */
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.badge--lv {
+  background: var(--color-energy-soft);
+  color: var(--color-energy);
+}
+
+.badge--mv {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.badge--feeder {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.badge--hist {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.badge--no-hist {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+/* ── Action buttons in table ── */
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.row-actions .btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.row-actions .btn-sm-danger {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  border: 1px solid var(--color-danger);
+  background: var(--color-surface);
+  color: var(--color-danger);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.row-actions .btn-sm-danger:hover {
+  background: var(--color-danger-soft);
+}

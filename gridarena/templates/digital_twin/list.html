@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/digital-twin-dashboard.css">
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="grid-dash-header">
+    <div>
+      <h2>Digital Twins</h2>
+      <p>Monitor and manage real-time digital twins of electrical grids.</p>
+    </div>
+    <a href="/digital-twins/ui/new" class="btn btn-primary">New Digital Twin</a>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="dt-summary">
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value">{{ twins | length }}</div>
+    <div class="dt-summary-card__label">Total Twins</div>
+  </div>
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value" style="color:#2563eb;">{{ running_count }}</div>
+    <div class="dt-summary-card__label">Running</div>
+  </div>
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value">{{ stopped_count }}</div>
+    <div class="dt-summary-card__label">Stopped</div>
+  </div>
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value">{{ grids | length }}</div>
+    <div class="dt-summary-card__label">Available Grids</div>
+  </div>
+</div>
+
+<!-- Twins table -->
+<div class="panel grids-section">
+  <h3>All Digital Twins</h3>
+  <p class="grids-section__desc">Click a twin to view its monitoring dashboard, or use the actions to control its lifecycle.</p>
+
+  <div class="grids-search">
+    <input type="text" id="dtSearch" placeholder="Search twins..." oninput="filterTable()">
+  </div>
+
+  <table class="data-table" id="twinsTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Grid</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Interval</th>
+        <th>Last Run</th>
+        <th>Last Error</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in twins %}
+      <tr data-id="{{ t.digital_twin_id | lower }}" data-name="{{ (t.name or '') | lower }}" data-grid="{{ t.grid_id | lower }}">
+        <td><a href="/digital-twins/ui/{{ t.digital_twin_id }}"><strong>{{ t.digital_twin_id }}</strong></a></td>
+        <td>{{ t.grid_id }}</td>
+        <td>{{ t.name or '—' }}</td>
+        <td><span class="status-badge status-badge--{{ t.status }}">{{ t.status }}</span></td>
+        <td>{{ t.update_interval_seconds }}s</td>
+        <td>{{ (t.last_run_at or '—')[:16] }}</td>
+        <td>
+          {% if t.last_error %}
+          <span class="muted" style="font-size:10px; color:#dc2626;" title="{{ t.last_error }}">{{ t.last_error[:40] }}{{ '...' if t.last_error|length > 40 else '' }}</span>
+          {% else %}
+          <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            <a href="/digital-twins/ui/{{ t.digital_twin_id }}" class="btn btn-primary" style="height:28px; padding:0 10px; font-size:11px;">View</a>
+            {% if t.status != 'running' %}
+            <button class="btn btn-primary" style="height:28px; padding:0 10px; font-size:11px;" onclick="startTwin('{{ t.digital_twin_id }}')">Start</button>
+            {% else %}
+            <button class="btn" style="height:28px; padding:0 10px; font-size:11px;" onclick="stopTwin('{{ t.digital_twin_id }}')">Stop</button>
+            {% endif %}
+            <button class="btn" style="height:28px; padding:0 10px; font-size:11px;" onclick="tickTwin('{{ t.digital_twin_id }}')">Tick</button>
+            <button class="btn" style="height:28px; padding:0 10px; font-size:11px; color:#dc2626;" onclick="deleteTwin('{{ t.digital_twin_id }}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center; padding:24px; color:#6b7280;">No digital twins yet. <a href="/digital-twins/ui/new">Create your first one</a>.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/digital-twin-list.js"></script>
+{% endblock %}

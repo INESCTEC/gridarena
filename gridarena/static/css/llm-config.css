@@ -1,0 +1,276 @@
+/* ── LLM Config Page ── */
+
+.llm-cfg-status { font-size: 16px; }
+.llm-cfg-status--ok { color: var(--color-success); }
+.llm-cfg-status--off { color: var(--color-danger); }
+
+/* Agent card grid */
+.llm-agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.llm-agent-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.llm-agent-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.12);
+}
+
+.llm-agent-card--selected {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+.llm-agent-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.llm-agent-card__name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.llm-agent-card__badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.llm-agent-card__desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+
+.llm-agent-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Tags */
+.llm-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+.llm-tag--rag {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+/* Workflow diagram */
+.llm-workflow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  padding: 8px 0;
+}
+
+.llm-wf-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.llm-wf-step__num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.llm-wf-step__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.llm-wf-step__body strong {
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.llm-wf-step__body span {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.llm-wf-arrow {
+  width: 24px;
+  height: 2px;
+  background: var(--color-border);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.llm-wf-arrow::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -3px;
+  border: solid var(--color-border);
+  border-width: 0 2px 2px 0;
+  padding: 3px;
+  transform: rotate(-45deg);
+}
+
+/* ── Add-agent card ── */
+
+.llm-agent-card--add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--color-border);
+  background: var(--color-surface-sunken);
+  text-decoration: none;
+  min-height: 120px;
+}
+
+.llm-agent-card--add:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.llm-agent-card--add__icon {
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--color-text-muted);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.llm-agent-card--add:hover .llm-agent-card--add__icon {
+  color: var(--color-accent);
+}
+
+/* Custom agent badge */
+.llm-agent-card--custom {
+  border-left: 3px solid var(--color-energy);
+}
+
+.llm-tag--custom {
+  background: var(--color-energy-soft);
+  color: var(--color-energy);
+}
+
+/* ── Wizard progress bar ── */
+
+.llm-wizard-progress {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.llm-wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  transition: background 0.15s;
+}
+
+.llm-wizard-step--active {
+  background: var(--color-accent-soft);
+}
+
+.llm-wizard-step--done {
+  background: var(--color-success-soft);
+}
+
+.llm-wizard-step__num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.llm-wizard-step--active .llm-wizard-step__num {
+  background: var(--color-accent);
+}
+
+.llm-wizard-step--done .llm-wizard-step__num {
+  background: var(--color-success);
+}
+
+.llm-wizard-step__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.llm-wizard-step--active .llm-wizard-step__label {
+  color: var(--color-accent);
+}
+
+/* ── Tool block ── */
+
+.llm-tool-block {
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.llm-tool-block__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* Parameter row */
+.llm-param-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}

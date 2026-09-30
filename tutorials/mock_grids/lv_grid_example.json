@@ -1,0 +1,54 @@
+{
+  "grid_id": "LV_GRID_01",
+
+  "nodes": [
+    {"node_id": "PT",  "coord_lat": 41.1496, "coord_lon": -8.6110},
+    {"node_id": "N1",  "coord_lat": 41.1500, "coord_lon": -8.6100},
+    {"node_id": "N2",  "coord_lat": 41.1504, "coord_lon": -8.6090},
+    {"node_id": "N3",  "coord_lat": 41.1508, "coord_lon": -8.6080},
+    {"node_id": "N4",  "coord_lat": 41.1503, "coord_lon": -8.6070},
+    {"node_id": "N5",  "coord_lat": 41.1498, "coord_lon": -8.6095},
+    {"node_id": "N6",  "coord_lat": 41.1494, "coord_lon": -8.6085},
+    {"node_id": "N7",  "coord_lat": 41.1510, "coord_lon": -8.6075},
+    {"node_id": "N8",  "coord_lat": 41.1514, "coord_lon": -8.6065},
+    {"node_id": "N9",  "coord_lat": 41.1492, "coord_lon": -8.6100},
+    {"node_id": "N10", "coord_lat": 41.1488, "coord_lon": -8.6090}
+  ],
+
+  "cables": [
+    {
+      "cable_id": "CBL_4x95",
+      "r_imp_real": 0.320, "r_imp_imag": 0.078,
+      "s_imp_real": 0.320, "s_imp_imag": 0.078,
+      "t_imp_real": 0.320, "t_imp_imag": 0.078,
+      "r_nom_curr": 245.0, "s_nom_curr": 245.0, "t_nom_curr": 245.0
+    },
+    {
+      "cable_id": "CBL_4x50",
+      "r_imp_real": 0.641, "r_imp_imag": 0.083,
+      "s_imp_real": 0.641, "s_imp_imag": 0.083,
+      "t_imp_real": 0.641, "t_imp_imag": 0.083,
+      "r_nom_curr": 160.0, "s_nom_curr": 160.0, "t_nom_curr": 160.0
+    },
+    {
+      "cable_id": "CBL_4x25",
+      "r_imp_real": 1.200, "r_imp_imag": 0.086,
+      "s_imp_real": 1.200, "s_imp_imag": 0.086,
+      "t_imp_real": 1.200, "t_imp_imag": 0.086,
+      "r_nom_curr": 110.0, "s_nom_curr": 110.0, "t_nom_curr": 110.0
+    }
+  ],
+
+  "connections": [
+    {"connection_id": "C01", "from_node_id": "PT",  "to_node_id": "N1",  "cable_id": "CBL_4x95", "length": 35},
+    {"connection_id": "C02", "from_node_id": "N1",  "to_node_id": "N2",  "cable_id": "CBL_4x95", "length": 42},
+    {"connection_id": "C03", "from_node_id": "N2",  "to_node_id": "N3",  "cable_id": "CBL_4x50", "length": 38},
+    {"connection_id": "C04", "from_node_id": "N3",  "to_node_id": "N4",  "cable_id": "CBL_4x50", "length": 55},
+    {"connection_id": "C05", "from_node_id": "N1",  "to_node_id": "N5",  "cable_id": "CBL_4x50", "length": 28},
+    {"connection_id": "C06", "from_node_id": "N5",  "to_node_id": "N6",  "cable_id": "CBL_4x25", "length": 45},
+    {"connection_id": "C07", "from_node_id": "N3",  "to_node_id": "N7",  "cable_id": "CBL_4x50", "length": 30},
+    {"connection_id": "C08", "from_node_id": "N7",  "to_node_id": "N8",  "cable_id": "CBL_4x25", "length": 50},
+    {"connection_id": "C09", "from_node_id": "PT",  "to_node_id": "N9",  "cable_id": "CBL_4x95", "length": 25},
+    {"connection_id": "C10", "from_node_id": "N9",  "to_node_id": "N10", "cable_id": "CBL_4x25", "length": 40}
+  ]
+}

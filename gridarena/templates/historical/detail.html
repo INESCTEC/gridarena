@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<link rel="stylesheet" href="/static/css/historical-dashboard.css">
+{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <div class="dash-header">
+    <div>
+      <div class="section-title">Historical Series</div>
+      <p class="muted" style="margin:0;"><a href="/historical/ui/{{ database_id }}">{{ database_id }}</a> &rsaquo; <strong>{{ series_id }}</strong> <span class="badge {{ 'badge--mv' if grid_level == 'MV' else ('badge--feeder' if grid_level == 'Feeder' else 'badge--lv') }}">{{ grid_level }}</span></p>
+      {% if name %}<p class="muted" style="margin:2px 0 0;">{{ name }}{% if description %} &mdash; {{ description }}{% endif %}</p>{% endif %}
+      {% if not empty %}
+      <div class="dash-header__meta">
+        {{ record_count }} records &bull; Phases: {{ all_phases | join(', ') or 'N/A' }}
+        {% if start %} &bull; From: {{ start }}{% endif %}
+        {% if end %} &bull; To: {{ end }}{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="dash-header__actions">
+      <a href="/historical/ui/{{ database_id }}" class="btn btn-primary">&larr; Back to database</a>
+    </div>
+  </div>
+</div>
+
+{% if empty %}
+<div class="panel">
+  <p class="muted">No records found for series <strong>{{ series_id }}</strong>.</p>
+</div>
+{% else %}
+
+<!-- Filter toolbar -->
+<form class="filter-bar" method="get">
+  <label>Quick:</label>
+  <div class="quick-range">
+    <button type="button" onclick="setQuickRange('1h')">1h</button>
+    <button type="button" onclick="setQuickRange('1d')">1d</button>
+    <button type="button" onclick="setQuickRange('7d')">7d</button>
+    <button type="button" onclick="setQuickRange('all')">All</button>
+  </div>
+  <label>Start:</label>
+  <input type="datetime-local" name="start" value="{{ start or '' }}">
+  <label>End:</label>
+  <input type="datetime-local" name="end" value="{{ end or '' }}">
+  <label>Phases:</label>
+  <label style="font-weight:normal;"><input type="checkbox" name="phase" value="R" {{ 'checked' if checked_r else '' }}> R</label>
+  <label style="font-weight:normal;"><input type="checkbox" name="phase" value="S" {{ 'checked' if checked_s else '' }}> S</label>
+  <label style="font-weight:normal;"><input type="checkbox" name="phase" value="T" {{ 'checked' if checked_t else '' }}> T</label>
+  <button class="btn btn-primary" type="submit">Apply</button>
+  <a href="/historical/ui/{{ database_id }}/{{ series_id }}" class="btn">Reset</a>
+</form>
+
+<!-- Tabs -->
+<div class="dash-tabs">
+  <button class="dash-tab active" data-tab="overview">Overview</button>
+  <button class="dash-tab" data-tab="rawdata">Raw Data</button>
+</div>
+
+<!-- Overview tab -->
+<div class="dash-pane active" id="pane-overview">
+  <div class="chart-grid">
+    {% if has_power %}
+    <div class="chart-card">
+      <h4>Power</h4>
+      <div id="chartPower" style="height:340px;"></div>
+    </div>
+    {% endif %}
+    {% if has_voltage %}
+    <div class="chart-card">
+      <h4>Voltage</h4>
+      <div id="chartVoltage" style="height:340px;"></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Raw Data tab -->
+<div class="dash-pane" id="pane-rawdata">
+  <div class="selector-row">
+    <label>Filter phase:</label>
+    <select id="rawPhaseFilter">
+      <option value="">All</option>
+      {% for p in all_phases %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary" type="button" id="rawApply">Apply</button>
+    <span class="muted" id="rawCount"></span>
+  </div>
+  <div class="raw-table-wrap">
+    <table class="data-table" id="rawTable">
+      <thead>
+        <tr>
+          <th>Datetime</th>
+          <th>Phase</th>
+          <th>Active Power (kW)</th>
+          <th>Reactive Power (kVAr)</th>
+          <th>Voltage (V)</th>
+          <th>Voltage Angle (deg)</th>
+        </tr>
+      </thead>
+      <tbody id="rawBody"></tbody>
+    </table>
+  </div>
+  <div style="margin-top:8px; text-align:center;">
+    <button class="btn" id="rawLoadMore" type="button" style="display:none;">Load more</button>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not empty %}
+<script>
+  window.HIST_DATA = {{ records | tojson }};
+  window.DATABASE_ID = '{{ database_id }}';
+  window.SERIES_ID = '{{ series_id }}';
+  window.HAS_POWER = {{ 'true' if has_power else 'false' }};
+  window.HAS_VOLTAGE = {{ 'true' if has_voltage else 'false' }};
+</script>
+<script src="/static/js/historical-dashboard.js"></script>
+{% endif %}
+{% endblock %}

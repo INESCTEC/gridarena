@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/ai-training-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="ai-header">
+    <h2>Diffusion Model Training</h2>
+    <p>Train privacy-aware generative models for synthetic grid power data using historical measurements.</p>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="ai-summary">
+  <div class="ai-summary-card">
+    <div class="ai-summary-card__value">{{ grids | length }}</div>
+    <div class="ai-summary-card__label">Available Grids</div>
+  </div>
+  <div class="ai-summary-card">
+    <div class="ai-summary-card__value">{{ runs | length }}</div>
+    <div class="ai-summary-card__label">Training Runs</div>
+  </div>
+  <div class="ai-summary-card">
+    <div class="ai-summary-card__value">{{ runs | selectattr('status', 'eq', 'completed') | list | length }}</div>
+    <div class="ai-summary-card__label">Trained Models</div>
+  </div>
+  <div class="ai-summary-card">
+    <div class="ai-summary-card__value" id="scDp">Disabled</div>
+    <div class="ai-summary-card__label">DP Mode</div>
+  </div>
+</div>
+
+<form id="trainForm">
+
+<!-- Step 1: Training Data -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">1</div>
+    <h4 class="ai-step__title">Training Data</h4>
+  </div>
+  <p class="ai-step__desc">Select grids and filters for the training dataset. Power measurements are loaded from the database.</p>
+
+  <div class="field">
+    <label style="min-width:120px;" for="gridInput">Grids</label>
+    <input list="gridOptions" id="gridInput" class="input" type="text"
+           placeholder="Type a grid ID and press Enter…" autocomplete="off" style="width:260px;">
+    <button type="button" class="btn btn-primary" id="addGridBtn" style="height:34px; padding:0 14px;">Add</button>
+    <span class="muted" style="font-size:12px; margin-left:8px;">Start typing to autocomplete; add as many grids as you like.</span>
+  </div>
+  <datalist id="gridOptions">
+    {% for gid in grids %}
+    <option value="{{ gid }}"></option>
+    {% endfor %}
+  </datalist>
+  <div class="grid-chip-list" id="selectedGridList">
+    <span class="muted" id="noGridsHint" style="font-size:12px;">No grids added yet.</span>
+  </div>
+
+  <div class="field" style="margin-top:14px;">
+    <label style="min-width:120px;" title="Filter measurements by electrical phase.">Phase</label>
+    <select id="phase" class="input" style="width:180px;">
+      <option value="">All phases</option>
+      <option value="R">R</option>
+      <option value="S">S</option>
+      <option value="T">T</option>
+    </select>
+  </div>
+
+  <details class="ai-accordion">
+    <summary>Data Filters (time range &amp; power range)</summary>
+    <div class="ai-accordion__body">
+      <div class="field">
+        <label style="min-width:160px;">Start Datetime</label>
+        <input id="startDt" class="input" type="datetime-local" style="width:220px;">
+      </div>
+      <div class="field">
+        <label style="min-width:160px;">End Datetime</label>
+        <input id="endDt" class="input" type="datetime-local" style="width:220px;">
+      </div>
+      <div class="field">
+        <label style="min-width:160px;">P Min (kW)</label>
+        <input id="pMin" class="input" type="number" step="0.1" style="width:220px;">
+      </div>
+      <div class="field">
+        <label style="min-width:160px;">P Max (kW)</label>
+        <input id="pMax" class="input" type="number" step="0.1" style="width:220px;">
+      </div>
+    </div>
+  </details>
+
+  <div id="dataPreview" style="margin-top:12px; padding:10px 14px; background:#f8fafc; border-radius:6px; font-size:12px; color:#64748b;">
+    No grids selected.
+  </div>
+</div>
+
+<!-- Step 2: Model Configuration -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">2</div>
+    <h4 class="ai-step__title">Model Configuration</h4>
+  </div>
+  <p class="ai-step__desc">Configure the DDPM training hyperparameters. Use a preset or customise individual values.</p>
+
+  <div class="field">
+    <label style="min-width:160px;" title="Node-mixing backbone. The three custom architectures accept any node count; UNet2D needs an even node count.">Architecture</label>
+    <select id="architecture" class="input" style="width:360px;">
+      {% for arch in architectures %}
+      <option value="{{ arch.value }}"{% if arch.value == 'axial' %} selected{% endif %}>{{ arch.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="preset-row">
+    <button type="button" class="preset-btn" onclick="applyPreset('fast')">Fast Test</button>
+    <button type="button" class="preset-btn active" onclick="applyPreset('balanced')">Balanced</button>
+    <button type="button" class="preset-btn" onclick="applyPreset('quality')">High Quality</button>
+  </div>
+
+  <div class="field">
+    <label style="min-width:160px;" title="Number of full passes through the dataset.">Epochs</label>
+    <input id="numEpochs" class="input" type="number" value="75" min="1" max="1000" style="width:180px;">
+  </div>
+  <div class="field">
+    <label style="min-width:160px;" title="Samples per training step.">Batch Size</label>
+    <input id="batchSize" class="input" type="number" value="16" min="1" max="256" style="width:180px;">
+  </div>
+  <div class="field">
+    <label style="min-width:160px;" title="AdamW learning rate.">Learning Rate</label>
+    <input id="learningRate" class="input" type="number" value="0.0001" step="0.00001" min="0" style="width:180px;">
+  </div>
+  <div class="field">
+    <label style="min-width:160px;" title="Warmup steps for cosine LR schedule.">LR Warmup Steps</label>
+    <input id="warmupSteps" class="input" type="number" value="500" min="0" style="width:180px;">
+  </div>
+
+  <details class="ai-accordion">
+    <summary>Data Normalisation</summary>
+    <div class="ai-accordion__body">
+      <div class="field">
+        <label style="min-width:160px;">Power Subtract</label>
+        <select id="powerSubtractMode" class="input" style="width:140px;" onchange="document.getElementById('powerSubtractCustom').style.display = this.value === 'custom' ? 'inline-block' : 'none';">
+          <option value="auto" selected>From data (mean)</option>
+          <option value="custom">Custom</option>
+        </select>
+        <input id="powerSubtractCustom" class="input" type="number" value="5.62" step="0.01" style="display:none; width:100px;">
+      </div>
+      <div class="field">
+        <label style="min-width:160px;">Power Rescale</label>
+        <select id="powerRescaleMode" class="input" style="width:140px;" onchange="document.getElementById('powerRescaleCustom').style.display = this.value === 'custom' ? 'inline-block' : 'none';">
+          <option value="auto" selected>From data (std)</option>
+          <option value="custom">Custom</option>
+        </select>
+        <input id="powerRescaleCustom" class="input" type="number" value="18.46" step="0.01" style="display:none; width:100px;">
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- Step 3: Differential Privacy -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">3</div>
+    <h4 class="ai-step__title">Differential Privacy</h4>
+  </div>
+
+  <div class="dp-card" id="dpCard">
+    <h4>Privacy Protection</h4>
+    <p style="font-size:12px; color:#64748b; margin:0 0 10px;">DP-SGD adds per-sample gradient clipping and calibrated noise to prevent the model from memorising individual training examples.</p>
+
+    <div class="field">
+      <label style="min-width:160px;">Enable DP-SGD</label>
+      <input type="checkbox" id="dpEnabled" onchange="toggleDp()">
+      <span class="dp-status dp-status--off" id="dpStatus">Disabled</span>
+    </div>
+
+    <div id="dpParams" style="display:none; margin-top:12px;">
+      <div class="field">
+        <label style="min-width:160px;" title="Per-sample gradient clip norm (C).">Max Grad Norm</label>
+        <input id="dpMaxGradNorm" class="input" type="number" value="1.0" step="0.1" min="0.01" style="width:180px;">
+      </div>
+      <div class="field">
+        <label style="min-width:160px;" title="Noise multiplier (sigma).">Noise Multiplier</label>
+        <input id="dpNoiseMultiplier" class="input" type="number" value="1.0" step="0.1" min="0.01" style="width:180px;">
+      </div>
+      <div class="field">
+        <label style="min-width:160px;" title="Target delta for (epsilon, delta)-DP.">Target Delta</label>
+        <input id="dpTargetDelta" class="input" type="number" value="0.00001" step="0.000001" min="0.0000001" style="width:180px;">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 4: Review & Start -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">4</div>
+    <h4 class="ai-step__title">Review &amp; Start</h4>
+  </div>
+
+  <div class="review-card" id="reviewCard">
+    <h4>Training Configuration Summary</h4>
+    <dl class="review-grid" id="reviewGrid"></dl>
+  </div>
+
+  <div class="field" style="margin-top:16px;">
+    <button id="trainBtn" class="btn btn-primary" type="submit">Start Training</button>
+  </div>
+  <p class="muted" id="trainMsg"></p>
+
+  <div class="ai-result" id="trainResult">
+    <h4>Training Started</h4>
+    <p class="muted" id="trainResultMsg"></p>
+  </div>
+</div>
+
+<!-- Step 5: Diagnostics -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">5</div>
+    <h4 class="ai-step__title">Diagnostics (optional)</h4>
+  </div>
+  <p class="ai-step__desc">Run analyses on the same data &amp; architecture selected above. Each launches as its own background run.</p>
+
+  <div class="dp-card">
+    <h4>Privacy Check</h4>
+    <p style="font-size:12px; color:#64748b; margin:0 0 10px;">Empirically audits whether the model memorises training data: a membership-inference attack (AUC) plus a canary-insertion test. Trains a throwaway diagnostic model with canaries injected — no shippable model is produced.</p>
+    <details class="ai-accordion">
+      <summary>Privacy check parameters</summary>
+      <div class="ai-accordion__body">
+        <div class="field"><label style="min-width:200px;" title="Fraction of days held out as non-members.">Validation fraction</label><input id="pcValFrac" class="input" type="number" value="0.2" step="0.05" min="0.05" max="0.9" style="width:160px;"></div>
+        <div class="field"><label style="min-width:200px;" title="Days discarded between train and held-out split.">Buffer days</label><input id="pcBufferDays" class="input" type="number" value="7" min="0" style="width:160px;"></div>
+        <div class="field"><label style="min-width:200px;" title="Synthetic canary days injected into training.">Canaries</label><input id="pcNumCanaries" class="input" type="number" value="5" min="1" max="50" style="width:160px;"></div>
+        <div class="field"><label style="min-width:200px;" title="Samples generated for the canary nearest-neighbour test.">Generated samples</label><input id="pcNumGenerated" class="input" type="number" value="128" min="8" max="1024" style="width:160px;"></div>
+      </div>
+    </details>
+    <div class="field" style="margin-top:10px;">
+      <button id="privacyBtn" class="btn btn-primary" type="button">Run Privacy Check</button>
+    </div>
+    <p class="muted" id="privacyMsg"></p>
+  </div>
+
+  <div class="dp-card" style="margin-top:14px;">
+    <h4>Best-Epoch Search</h4>
+    <p style="font-size:12px; color:#64748b; margin:0 0 10px;">Trains once up to a maximum, scoring the model against a held-out split at regular checkpoints, and reports the epoch with the best validation fit. The winning checkpoint is saved as this run's model.</p>
+    <details class="ai-accordion">
+      <summary>Epoch search parameters</summary>
+      <div class="ai-accordion__body">
+        <div class="field"><label style="min-width:200px;" title="Maximum epochs to train during the sweep.">Max epochs</label><input id="esMaxEpochs" class="input" type="number" value="75" min="2" max="1000" style="width:160px;"></div>
+        <div class="field"><label style="min-width:200px;" title="Score the model every N epochs.">Checkpoint interval</label><input id="esCheckpointInterval" class="input" type="number" value="10" min="1" max="500" style="width:160px;"></div>
+        <div class="field"><label style="min-width:200px;" title="Fraction of days held out for validation.">Validation fraction</label><input id="esValFrac" class="input" type="number" value="0.2" step="0.05" min="0.05" max="0.9" style="width:160px;"></div>
+        <div class="field"><label style="min-width:200px;" title="DDPM steps used for the per-checkpoint scoring passes.">Sweep inference steps</label><input id="esSweepSteps" class="input" type="number" value="100" min="10" max="2000" style="width:160px;"></div>
+      </div>
+    </details>
+    <div class="field" style="margin-top:10px;">
+      <button id="epochBtn" class="btn btn-primary" type="button">Find Best Epochs</button>
+    </div>
+    <p class="muted" id="epochMsg"></p>
+  </div>
+</div>
+
+</form>
+
+<!-- Training Runs -->
+<div class="panel ai-runs">
+  <h3>Training Runs</h3>
+  <p class="ai-runs__desc">Monitor training jobs, inspect failures and access generated model artefacts.</p>
+
+  <table class="data-table" id="runsTable">
+    <thead>
+      <tr>
+        <th>Run ID</th>
+        <th>Type</th>
+        <th>Arch</th>
+        <th>Grids</th>
+        <th>Epochs</th>
+        <th>DP</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in runs %}
+      <tr>
+        <td><a href="/diffusion/ui/{{ run.run_id }}"><strong>{{ run.run_id }}</strong></a></td>
+        <td>
+          {% if run.job_type == 'privacy_check' %}Privacy
+          {% elif run.job_type == 'epoch_search' %}Epoch Search
+          {% else %}Train{% endif %}
+        </td>
+        <td>{{ run.architecture or '—' }}</td>
+        <td>{{ run.grid_ids | join(', ') }}</td>
+        <td>{{ run.num_epochs }}</td>
+        <td>
+          {% if run.metrics and run.metrics.dp_epsilon is defined and run.metrics.dp_epsilon is not none %}
+          <span class="dp-status dp-status--on">ON</span>
+          {% else %}
+          <span class="dp-status dp-status--off">OFF</span>
+          {% endif %}
+        </td>
+        <td>
+          <span class="status-badge status-badge--{{ run.status }}">{{ run.status }}</span>
+          {% if run.status == 'failed' and run.error %}
+          <span class="muted" style="font-size:10px; display:block; margin-top:2px; color:#dc2626;">{{ run.error[:60] }}</span>
+          {% endif %}
+        </td>
+        <td>{{ run.created_at[:16] }}</td>
+        <td>
+          <div class="row-actions">
+            <a href="/diffusion/ui/{{ run.run_id }}" class="btn btn-primary" style="height:28px; padding:0 10px; font-size:11px;">View</a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="text-align:center; padding:24px; color:#6b7280;">No runs yet. Configure and start your first job above.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/diffusion-train.js"></script>
+{% endblock %}

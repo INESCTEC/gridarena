@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<style>
+  .doc-source-view { max-width: 780px; margin: 0 auto; line-height: 1.6; }
+  .doc-source-view h1, .doc-source-view h2, .doc-source-view h3,
+  .doc-source-view h4, .doc-source-view h5, .doc-source-view h6 { scroll-margin-top: 16px; }
+  .doc-source-view h1:target, .doc-source-view h2:target, .doc-source-view h3:target,
+  .doc-source-view h4:target, .doc-source-view h5:target, .doc-source-view h6:target {
+    background: #fef9c3;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <div class="doc-source-view">
+    {{ body_html | safe }}
+  </div>
+</div>
+{% endblock %}

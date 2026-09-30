@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="grid-dash-header">
+    <div>
+      <h2>Power Flow Simulator</h2>
+      <p>Run and inspect power-flow simulations for available grids.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="grid-summary-cards">
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ grids | length }}</div>
+    <div class="grid-summary-card__label">Available Grids</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ grids_with_results }}</div>
+    <div class="grid-summary-card__label">Grids With Results</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ grids | selectattr('has_historical') | list | length }}</div>
+    <div class="grid-summary-card__label">With Historical Data</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value" style="color:#10b981;">Ready</div>
+    <div class="grid-summary-card__label">Solver Status</div>
+  </div>
+</div>
+
+<!-- Run Power Flow card -->
+<div class="upload-card">
+  <h3>Run Power Flow</h3>
+  <p class="upload-card__desc">Select a grid, phase and optional time range, then run the backward/forward sweep power flow solver.</p>
+
+  <form id="pfForm">
+    <div class="field">
+      <label style="min-width:120px;" title="Select the grid to run the power flow on. The solver uses the grid's topology and cable impedances.">Grid</label>
+      <select class="input" id="gridId" name="grid_id" required style="width:220px;">
+        <option value="">Select a grid</option>
+        {% for g in grids %}
+        <option value="{{ g.grid_id }}">{{ g.grid_id }} ({{ g.n_nodes }} nodes)</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label style="min-width:120px;" title="Electrical phase to compute the power flow for. Each phase is solved independently.">Phase</label>
+      <select class="input" id="phase" name="phase" required style="width:220px;">
+        <option value="">Select phase</option>
+        <option value="R">R</option>
+        <option value="S">S</option>
+        <option value="T">T</option>
+      </select>
+    </div>
+    <div class="field">
+      <label style="min-width:120px;" title="Only include measurement timestamps from this datetime onward. Leave empty for all available timestamps.">Start</label>
+      <input class="input" type="datetime-local" id="start" name="start_time" style="width:220px;">
+    </div>
+    <div class="field">
+      <label style="min-width:120px;" title="Only include measurement timestamps up to this datetime. Leave empty for all available timestamps.">End</label>
+      <input class="input" type="datetime-local" id="end" name="end_time" style="width:220px;">
+    </div>
+
+    <div class="field" style="margin-top:14px;">
+      <button id="runBtn" class="btn btn-primary" type="submit">Run Power Flow</button>
+      <button class="btn" type="button" onclick="document.getElementById('pfForm').reset(); document.getElementById('msg').textContent='';">Reset</button>
+    </div>
+    <p class="muted" id="msg"></p>
+  </form>
+
+  <!-- Result feedback -->
+  <div id="resultCard" class="panel" style="display:none; margin-top:16px; border-color:#10b981;">
+    <h4 style="color:#10b981; margin-top:0;">Simulation Complete</h4>
+    <p class="muted" id="resultMsg"></p>
+    <a id="resultLink" href="#" class="btn btn-primary" style="display:none;">View Results</a>
+  </div>
+</div>
+
+<!-- Available grids table -->
+<div class="panel grids-section">
+  <h3>Available Grids</h3>
+  <p class="grids-section__desc">Select a grid to run a simulation or inspect previous results.</p>
+
+  <div class="grids-search">
+    <input type="text" id="gridSearch" placeholder="Search grids..." oninput="filterGridTable()">
+  </div>
+
+  <table class="data-table" id="gridsTable">
+    <thead>
+      <tr>
+        <th>Grid ID</th>
+        <th>Nodes</th>
+        <th>Historical</th>
+        <th>PF Results</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in grids %}
+      <tr data-grid-id="{{ g.grid_id | lower }}">
+        <td><strong>{{ g.grid_id }}</strong></td>
+        <td>{{ g.n_nodes }}</td>
+        <td>
+          {% if g.has_historical %}
+          <span class="badge badge--hist">Available</span>
+          {% else %}
+          <span class="badge badge--no-hist">No data</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if g.has_results %}
+          <span class="badge badge--hist">Stored</span>
+          {% else %}
+          <span class="badge badge--no-hist">None</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-primary" onclick="selectGrid('{{ g.grid_id }}')">Run</button>
+            {% if g.has_results %}
+            <a href="/powerflow/ui/{{ g.grid_id }}" class="btn btn-primary">Results</a>
+            {% endif %}
+            <a href="/grid/ui/{{ g.grid_id }}" class="btn btn-primary">Grid</a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="text-align:center; padding:24px; color:#6b7280;">No grids available. Upload a grid first.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterGridTable() {
+  var q = document.getElementById('gridSearch').value.toLowerCase();
+  document.querySelectorAll('#gridsTable tbody tr').forEach(function (row) {
+    var id = row.getAttribute('data-grid-id') || '';
+    row.style.display = id.indexOf(q) !== -1 ? '' : 'none';
+  });
+}
+
+function selectGrid(gridId) {
+  document.getElementById('gridId').value = gridId;
+  document.getElementById('gridId').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+</script>
+<script src="/static/js/powerflow-form.js"></script>
+{% endblock %}

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/measurements-dashboard.css">
+{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <div class="dash-header">
+    <div>
+      <div class="section-title">Measurements</div>
+      <p style="margin:0;"><strong>{{ grid_id }}</strong></p>
+      {% if not empty %}
+      <div class="dash-header__meta">
+        {{ record_count }} records &bull; {{ all_nodes | length }} nodes &bull; Phases: {{ all_phases | join(', ') or 'N/A' }}
+        {% if start %} &bull; From: {{ start }}{% endif %}
+        {% if end %} &bull; To: {{ end }}{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="dash-header__actions">
+      <a href="/measurements/ui" class="btn btn-primary">&larr; Back</a>
+      <a href="/powerflow/ui" class="btn btn-primary">Run Power Flow</a>
+    </div>
+  </div>
+</div>
+
+{% if empty %}
+<div class="panel">
+  <p class="muted">No measurements found for grid <strong>{{ grid_id }}</strong>.</p>
+</div>
+{% else %}
+
+<!-- Summary cards (populated by JS) -->
+<div class="summary-cards" id="summaryCards">
+  <div class="summary-card"><div class="summary-card__value" id="scAvgV">—</div><div class="summary-card__label">Avg Voltage (V)</div></div>
+  <div class="summary-card"><div class="summary-card__value" id="scMinV">—</div><div class="summary-card__label">Min Voltage (V)</div></div>
+  <div class="summary-card"><div class="summary-card__value" id="scMaxV">—</div><div class="summary-card__label">Max Voltage (V)</div></div>
+  <div class="summary-card"><div class="summary-card__value" id="scMaxP">—</div><div class="summary-card__label">Max Active Power (kW)</div></div>
+  <div class="summary-card"><div class="summary-card__value" id="scCount">—</div><div class="summary-card__label">Records</div></div>
+</div>
+
+<!-- Filter toolbar -->
+<form class="filter-bar" method="get">
+  <label>Quick:</label>
+  <div class="quick-range">
+    <button type="button" onclick="setQuickRange('1h')">1h</button>
+    <button type="button" onclick="setQuickRange('1d')">1d</button>
+    <button type="button" onclick="setQuickRange('7d')">7d</button>
+    <button type="button" onclick="setQuickRange('all')">All</button>
+  </div>
+  <label>Start:</label>
+  <input type="datetime-local" name="start" value="{{ start or '' }}">
+  <label>End:</label>
+  <input type="datetime-local" name="end" value="{{ end or '' }}">
+  <label>Phases:</label>
+  <label style="font-weight:normal;"><input type="checkbox" name="phase" value="R" {{ 'checked' if checked_r else '' }}> R</label>
+  <label style="font-weight:normal;"><input type="checkbox" name="phase" value="S" {{ 'checked' if checked_s else '' }}> S</label>
+  <label style="font-weight:normal;"><input type="checkbox" name="phase" value="T" {{ 'checked' if checked_t else '' }}> T</label>
+  <button class="btn btn-primary" type="submit">Apply</button>
+  <a href="/measurements/ui/{{ grid_id }}" class="btn">Reset</a>
+</form>
+
+<!-- Tabs -->
+<div class="dash-tabs">
+  <button class="dash-tab active" data-tab="overview">Overview</button>
+  <button class="dash-tab" data-tab="timeseries">Time Series</button>
+  <button class="dash-tab" data-tab="comparison">Node Comparison</button>
+  <button class="dash-tab" data-tab="rawdata">Raw Data</button>
+</div>
+
+<!-- Overview tab -->
+<div class="dash-pane active" id="pane-overview">
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h4>Voltage Quality</h4>
+      <div id="chartVoltageEnvelope" style="height:340px;"></div>
+    </div>
+    <div class="chart-card">
+      <h4>Active Power</h4>
+      <div id="chartPowerTotal" style="height:340px;"></div>
+    </div>
+  </div>
+  <div class="chart-grid chart-grid--full" style="margin-top:16px;">
+    <div class="chart-card">
+      <h4>
+        Heatmap
+        <select id="heatmapMetric" style="margin-left:12px; height:28px; font-size:12px;">
+          <option value="voltage">Voltage (V)</option>
+          <option value="power">Active Power (kW)</option>
+        </select>
+      </h4>
+      <div id="chartHeatmap" style="height:380px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Time Series tab -->
+<div class="dash-pane" id="pane-timeseries">
+  <div class="selector-row">
+    <label>Nodes:</label>
+    <select id="tsNodeSelect" multiple size="4" style="min-width:160px;">
+      {% for n in all_nodes %}<option value="{{ n }}" {{ 'selected' if loop.index0 == 0 else '' }}>{{ n }}</option>{% endfor %}
+    </select>
+    <label>Phases:</label>
+    <label style="font-weight:normal;"><input type="checkbox" class="tsPhase" value="R" checked> R</label>
+    <label style="font-weight:normal;"><input type="checkbox" class="tsPhase" value="S" checked> S</label>
+    <label style="font-weight:normal;"><input type="checkbox" class="tsPhase" value="T" checked> T</label>
+    <label>Metric:</label>
+    <select id="tsMetric">
+      <option value="voltage_magnitude">Voltage (V)</option>
+      <option value="power_active">Active Power (kW)</option>
+      <option value="power_reactive">Reactive Power (kVAr)</option>
+    </select>
+    <button class="btn btn-primary" type="button" id="tsUpdate">Update</button>
+  </div>
+  <div class="chart-card">
+    <div id="chartTimeSeries" style="height:420px;"></div>
+  </div>
+</div>
+
+<!-- Node Comparison tab -->
+<div class="dash-pane" id="pane-comparison">
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h4>Average Voltage by Node</h4>
+      <div id="chartNodeAvgV" style="height:340px;"></div>
+    </div>
+    <div class="chart-card">
+      <h4>Max Active Power by Node</h4>
+      <div id="chartNodeMaxP" style="height:340px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Raw Data tab -->
+<div class="dash-pane" id="pane-rawdata">
+  <div class="selector-row">
+    <label>Filter node:</label>
+    <select id="rawNodeFilter">
+      <option value="">All</option>
+      {% for n in all_nodes %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+    </select>
+    <label>Filter phase:</label>
+    <select id="rawPhaseFilter">
+      <option value="">All</option>
+      {% for p in all_phases %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary" type="button" id="rawApply">Apply</button>
+    <span class="muted" id="rawCount"></span>
+  </div>
+  <div class="raw-table-wrap">
+    <table class="data-table" id="rawTable">
+      <thead>
+        <tr>
+          <th>Datetime</th>
+          <th>Node</th>
+          <th>Phase</th>
+          <th>Active Power (kW)</th>
+          <th>Reactive Power (kVAr)</th>
+          <th>Voltage (V)</th>
+        </tr>
+      </thead>
+      <tbody id="rawBody"></tbody>
+    </table>
+  </div>
+  <div style="margin-top:8px; text-align:center;">
+    <button class="btn" id="rawLoadMore" type="button" style="display:none;">Load more</button>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not empty %}
+<script>
+  window.HIST_DATA = {{ records | tojson }};
+  window.GRID_ID = '{{ grid_id }}';
+</script>
+<script src="/static/js/measurements-dashboard.js"></script>
+{% endif %}
+{% endblock %}

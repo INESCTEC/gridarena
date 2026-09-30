@@ -1,0 +1,92 @@
+{
+    "grid_id": "grid001",
+    "nodes": [
+        {
+            "node_id": "PT",
+            "coord_lat": 41.1,
+            "coord_lon": -8.6,
+            "coord_error": 1
+        },
+        {
+            "node_id": "N2",
+            "coord_lat": 41.2,
+            "coord_lon": -8.61,
+            "coord_error": 1
+        },
+        {
+            "node_id": "N3",
+            "coord_lat": 41.3,
+            "coord_lon": -8.62,
+            "coord_error": 1
+        },
+        {
+            "node_id": "N4",
+            "coord_lat": 41.4,
+            "coord_lon": -8.63,
+            "coord_error": 1
+        },
+        {
+            "node_id": "N5",
+            "coord_lat": 41.5,
+            "coord_lon": -8.64,
+            "coord_error": 1
+        },
+        {
+            "node_id": "N6",
+            "coord_lat": 41.6,
+            "coord_lon": -8.65,
+            "coord_error": 1
+        }
+    ],
+    "connections": [
+        {
+            "connection_id": "C1",
+            "from_node_id": "PT",
+            "to_node_id": "N2",
+            "length": 100.0,
+            "cable_id": "CBL1"
+        },
+        {
+            "connection_id": "C2",
+            "from_node_id": "N2",
+            "to_node_id": "N3",
+            "length": 120.0,
+            "cable_id": "CBL1"
+        },
+        {
+            "connection_id": "C3",
+            "from_node_id": "N3",
+            "to_node_id": "N4",
+            "length": 110.0,
+            "cable_id": "CBL1"
+        },
+        {
+            "connection_id": "C4",
+            "from_node_id": "N4",
+            "to_node_id": "N5",
+            "length": 130.0,
+            "cable_id": "CBL1"
+        },
+        {
+            "connection_id": "C5",
+            "from_node_id": "N5",
+            "to_node_id": "N6",
+            "length": 90.0,
+            "cable_id": "CBL1"
+        }
+    ],
+    "cables": [
+        {
+            "cable_id": "CBL1",
+            "r_imp_real": 0.1,
+            "r_imp_imag": 0.01,
+            "s_imp_real": 0.1,
+            "s_imp_imag": 0.01,
+            "t_imp_real": 0.1,
+            "t_imp_imag": 0.01,
+            "r_nom_curr": 100.0,
+            "s_nom_curr": 100.0,
+            "t_nom_curr": 100.0
+        }
+    ]
+}

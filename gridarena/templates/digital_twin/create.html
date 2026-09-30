@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/digital-twin-dashboard.css">
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="grid-dash-header">
+    <div>
+      <h2>New Digital Twin</h2>
+      <p>Follow the steps below to configure a real-time digital twin for an electrical grid.</p>
+    </div>
+    <a href="/digital-twins/ui" class="btn">Back to Overview</a>
+  </div>
+</div>
+
+<!-- Progress bar -->
+<div class="dt-progress" id="progressBar">
+  <div class="dt-progress__step dt-progress__step--active" data-step="1"><span>1</span> Grid</div>
+  <div class="dt-progress__step" data-step="2"><span>2</span> Source</div>
+  <div class="dt-progress__step" data-step="3"><span>3</span> Nodes</div>
+  <div class="dt-progress__step" data-step="4"><span>4</span> Power Flow</div>
+  <div class="dt-progress__step" data-step="5"><span>5</span> Review</div>
+</div>
+
+<form id="createForm">
+
+<!-- ════════ Step 1: Grid ════════ -->
+<div class="dt-step dt-wizard-panel" id="step1">
+  <div class="dt-step__header">
+    <div class="dt-step__number">1</div>
+    <h4 class="dt-step__title">Select Grid</h4>
+  </div>
+  <p class="dt-step__desc">Choose the grid this digital twin will mirror.</p>
+
+  <div class="field">
+    <label style="min-width:120px;">Grid</label>
+    <select id="gridId" class="input" required style="width:280px;">
+      <option value="">Select a grid</option>
+      {% for gid in grids %}
+      <option value="{{ gid }}">{{ gid }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label style="min-width:120px;">Twin Name</label>
+    <input id="dtName" class="input" type="text" placeholder="e.g. Porto LV Monitoring" style="width:280px;">
+  </div>
+  <div class="field">
+    <label style="min-width:120px;">Description</label>
+    <textarea id="dtDesc" class="input" placeholder="Optional" style="width:280px; height:50px; resize:vertical;"></textarea>
+  </div>
+
+  <div class="dt-wizard-nav">
+    <span></span>
+    <button type="button" class="btn btn-primary" onclick="goStep(2)">Next: Data Source</button>
+  </div>
+</div>
+
+<!-- ════════ Step 2: Source URL + Auth ════════ -->
+<div class="dt-step dt-wizard-panel" id="step2" style="display:none;">
+  <div class="dt-step__header">
+    <div class="dt-step__number">2</div>
+    <h4 class="dt-step__title">External Data Source</h4>
+  </div>
+  <p class="dt-step__desc">Enter the base URL and authentication. Query parameters specific to each node will be configured in the next step.</p>
+
+  <div class="field">
+    <label style="min-width:140px;">Base URL</label>
+    <input id="srcUrl" class="input" type="url" required placeholder="https://api.example.com/data" style="width:380px;">
+  </div>
+  <div class="field">
+    <label style="min-width:140px;">HTTP Method</label>
+    <select id="srcMethod" class="input" style="width:120px;">
+      <option value="GET">GET</option>
+      <option value="POST">POST</option>
+    </select>
+  </div>
+  <div class="field">
+    <label style="min-width:140px;">Auth Type</label>
+    <select id="srcAuth" class="input" style="width:180px;" onchange="toggleAuthFields()">
+      <option value="none">No authentication</option>
+      <option value="bearer">Bearer Token</option>
+      <option value="token">Token (Authorization: Token xxx)</option>
+      <option value="api_key">API Key</option>
+      <option value="basic">Basic Auth</option>
+    </select>
+  </div>
+  <div class="field" id="secretRefRow" style="display:none;">
+    <label style="min-width:140px;">Secret Env Variable</label>
+    <input id="srcSecretRef" class="input" type="text" placeholder="e.g. SCADA_API_TOKEN" style="width:240px;">
+  </div>
+  <div class="field" id="secretHeaderRow" style="display:none;">
+    <label style="min-width:140px;">Secret Header Name</label>
+    <input id="srcSecretHeader" class="input" type="text" placeholder="Authorization" style="width:240px;">
+  </div>
+  <div class="field">
+    <label style="min-width:140px;">Extra Headers (JSON)</label>
+    <input id="srcHeaders" class="input" type="text" placeholder='{"Accept":"application/json"}' style="width:380px;">
+  </div>
+
+  <div class="dt-wizard-nav">
+    <button type="button" class="btn" onclick="goStep(1)">Back</button>
+    <button type="button" class="btn btn-primary" onclick="goStep(3)">Next: Assign Nodes</button>
+  </div>
+</div>
+
+<!-- ════════ Step 3: Grid Graph + Per-Node Assignment ════════ -->
+<div class="dt-step dt-wizard-panel" id="step3" style="display:none;">
+  <div class="dt-step__header">
+    <div class="dt-step__number">3</div>
+    <h4 class="dt-step__title">Assign Data Sources to Nodes</h4>
+  </div>
+  <p class="dt-step__desc">Click a node on the graph to assign an external data feed. For each node, specify the query parameters and the mapping paths that extract the value from the API response.</p>
+
+  <div style="display:flex; gap:16px; flex-wrap:wrap;">
+    <!-- Graph -->
+    <div style="flex:1; min-width:300px;">
+      <div id="gridGraph" style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; min-height:350px;"></div>
+    </div>
+
+    <!-- Node config panel -->
+    <div style="flex:1; min-width:300px;">
+      <div id="nodePanel" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:16px; min-height:350px;">
+        <p class="muted" id="nodePanelPlaceholder" style="text-align:center; padding-top:120px;">Click a node on the graph to configure its data feed.</p>
+
+        <div id="nodeForm" style="display:none;">
+          <h4 style="margin:0 0 8px; font-size:14px; color:#0f172a;">Node: <strong id="nfNodeId"></strong></h4>
+
+          <div class="field">
+            <label style="min-width:130px;">Phase</label>
+            <select id="nfPhase" class="input" style="width:80px;">
+              <option value="R">R</option>
+              <option value="S">S</option>
+              <option value="T">T</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:6px;">Query Parameters</label>
+            <div id="nfParamsList"></div>
+            <button type="button" class="btn" style="height:26px; padding:0 10px; font-size:11px; margin-top:4px;" onclick="addParamRow()">+ Add Parameter</button>
+          </div>
+          <div class="field">
+            <label style="min-width:130px;">Update Interval (s)</label>
+            <input id="nfInterval" class="input" type="number" value="60" min="5" max="86400" style="width:100px;">
+          </div>
+          <div class="field">
+            <label style="min-width:130px;">Timeout (s)</label>
+            <input id="nfTimeout" class="input" type="number" value="30" min="1" max="300" style="width:100px;">
+          </div>
+
+          <h4 style="font-size:13px; margin:14px 0 6px; color:#374151;">Field Mapping</h4>
+          <p class="dt-step__desc" style="margin-bottom:8px;">Use dot paths with <code>[0]</code> to extract the latest entry from arrays. Example: <code>data[0].value</code></p>
+
+          <div class="field">
+            <label style="min-width:130px;">Timestamp</label>
+            <input id="nfTimestamp" class="input" type="text" value="data[0].datetime" style="width:220px;">
+          </div>
+          <div class="field">
+            <label style="min-width:130px;">Active Power</label>
+            <input id="nfActivePower" class="input" type="text" placeholder="data[0].value" style="width:140px;">
+            <span style="font-size:11px; color:#6b7280; margin:0 4px;">&times;</span>
+            <input id="nfActivePowerFactor" class="input" type="number" value="1" step="any" style="width:70px;" title="Multiplicative factor applied to the raw value">
+          </div>
+          <div class="field">
+            <label style="min-width:130px;">Reactive Power</label>
+            <input id="nfReactivePower" class="input" type="text" placeholder="(optional)" style="width:140px;">
+            <span style="font-size:11px; color:#6b7280; margin:0 4px;">&times;</span>
+            <input id="nfReactivePowerFactor" class="input" type="number" value="1" step="any" style="width:70px;" title="Multiplicative factor applied to the raw value">
+          </div>
+          <div class="field">
+            <label style="min-width:130px;">Voltage Mag.</label>
+            <input id="nfVoltageMag" class="input" type="text" placeholder="(optional)" style="width:140px;">
+            <span style="font-size:11px; color:#6b7280; margin:0 4px;">&times;</span>
+            <input id="nfVoltageMagFactor" class="input" type="number" value="1" step="any" style="width:70px;" title="Multiplicative factor applied to the raw value">
+          </div>
+
+          <div class="field" style="margin-top:12px; gap:8px;">
+            <button type="button" class="btn btn-primary" onclick="assignNode()">Assign Node</button>
+            <button type="button" class="btn" onclick="removeAssignment()">Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assigned nodes table -->
+  <div style="margin-top:16px;">
+    <h4 style="font-size:14px; margin:0 0 8px; color:#0f172a;">Assigned Nodes (<span id="assignCount">0</span>)</h4>
+    <table class="data-table" id="assignTable">
+      <thead>
+        <tr>
+          <th>Node</th>
+          <th>Phase</th>
+          <th>Query Params</th>
+          <th>Interval</th>
+          <th>Active Power Path</th>
+          <th>Voltage Path</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="assignBody">
+        <tr id="assignEmpty"><td colspan="7" style="text-align:center; padding:16px; color:#6b7280;">No nodes assigned yet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="dt-wizard-nav">
+    <button type="button" class="btn" onclick="goStep(2)">Back</button>
+    <button type="button" class="btn btn-primary" onclick="goStep(4)">Next: Power Flow</button>
+  </div>
+</div>
+
+<!-- ════════ Step 4: Power Flow ════════ -->
+<div class="dt-step dt-wizard-panel" id="step4" style="display:none;">
+  <div class="dt-step__header">
+    <div class="dt-step__number">4</div>
+    <h4 class="dt-step__title">Power-Flow Configuration</h4>
+  </div>
+  <p class="dt-step__desc">Configure the backward/forward sweep algorithm that runs after each measurement update.</p>
+
+  <div class="field">
+    <label style="min-width:160px;">Phase</label>
+    <select id="pfPhase" class="input" style="width:120px;">
+      <option value="R">R</option>
+      <option value="S">S</option>
+      <option value="T">T</option>
+    </select>
+  </div>
+  <div class="field">
+    <label style="min-width:160px;">Reference Voltage (V)</label>
+    <input id="pfVoltRef" class="input" type="number" value="230" step="1" min="1" style="width:120px;">
+  </div>
+
+  <div class="field" style="margin-top:12px;">
+    <label style="min-width:160px;">Broker Topic</label>
+    <input id="brokerTopic" class="input" type="text" placeholder="(auto-generated)" style="width:380px;">
+  </div>
+
+  <div class="dt-wizard-nav">
+    <button type="button" class="btn" onclick="goStep(3)">Back</button>
+    <button type="button" class="btn btn-primary" onclick="goStep(5)">Next: Review</button>
+  </div>
+</div>
+
+<!-- ════════ Step 5: Review & Create ════════ -->
+<div class="dt-step dt-wizard-panel" id="step5" style="display:none;">
+  <div class="dt-step__header">
+    <div class="dt-step__number">5</div>
+    <h4 class="dt-step__title">Review &amp; Create</h4>
+  </div>
+
+  <div class="dt-review">
+    <h4>Configuration Summary</h4>
+    <dl class="dt-review-grid" id="reviewGrid"></dl>
+  </div>
+
+  <h4 style="font-size:13px; margin:16px 0 6px; color:#374151;">Node Assignments (<span id="reviewAssignCount">0</span>)</h4>
+  <div class="dt-mapping-preview" id="reviewAssignments"></div>
+
+  <div class="dt-wizard-nav" style="margin-top:20px;">
+    <button type="button" class="btn" onclick="goStep(4)">Back</button>
+    <button id="createBtn" class="btn btn-primary" type="submit">Create Digital Twin</button>
+  </div>
+  <p class="muted" id="createMsg" style="margin-top:8px;"></p>
+</div>
+
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/digital-twin-create.js"></script>
+{% endblock %}

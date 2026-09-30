@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/digital-twin-dashboard.css">
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="grid-dash-header">
+    <div>
+      <h2>Offline Scenarios</h2>
+      <p>What-if analysis: clone a digital twin, modify the grid, and simulate across the full time series.</p>
+    </div>
+  </div>
+</div>
+
+<div class="dt-summary">
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value">{{ scenarios | length }}</div>
+    <div class="dt-summary-card__label">Total Scenarios</div>
+  </div>
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value">{{ scenarios | selectattr('simulation_status', 'eq', 'completed') | list | length }}</div>
+    <div class="dt-summary-card__label">Completed</div>
+  </div>
+  <div class="dt-summary-card">
+    <div class="dt-summary-card__value">{{ scenarios | selectattr('simulation_status', 'eq', 'running') | list | length }}</div>
+    <div class="dt-summary-card__label">Running</div>
+  </div>
+</div>
+
+<div class="panel grids-section">
+  <h3>All Scenarios</h3>
+  <p class="grids-section__desc">Clone a scenario from any digital twin's detail page using "Clone as Offline Scenario".</p>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Source DT</th>
+        <th>Grid</th>
+        <th>Timestamps</th>
+        <th>Status</th>
+        <th>Progress</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in scenarios %}
+      <tr>
+        <td><a href="/offline-scenarios/ui/{{ s.scenario_id }}"><strong>{{ s.scenario_id }}</strong></a></td>
+        <td>{{ s.name or '—' }}</td>
+        <td>{{ s.source_dt_id }}</td>
+        <td>{{ s.grid_id }}</td>
+        <td>{{ s.total_timestamps }}</td>
+        <td><span class="status-badge status-badge--{{ s.simulation_status }}">{{ s.simulation_status }}</span></td>
+        <td>{{ s.completed_timestamps }}/{{ s.total_timestamps }}</td>
+        <td>
+          <div class="row-actions">
+            <a href="/offline-scenarios/ui/{{ s.scenario_id }}" class="btn btn-primary" style="height:28px; padding:0 10px; font-size:11px;">View</a>
+            <button class="btn" style="height:28px; padding:0 10px; font-size:11px; color:#dc2626;" onclick="deleteScenario('{{ s.scenario_id }}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center; padding:24px; color:#6b7280;">No scenarios yet. Clone one from a digital twin's detail page.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteScenario(id) {
+  if (!confirm('Delete scenario ' + id + '?')) return;
+  fetch('/offline-scenarios/' + id, { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function() { location.reload(); })
+    .catch(function(e) { alert('Error: ' + e); });
+}
+</script>
+{% endblock %}

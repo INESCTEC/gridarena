@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<link rel="stylesheet" href="/static/css/historical-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="dash-header">
+    <div>
+      <div class="section-title">Historical Database</div>
+      <p style="margin:0;"><strong>{{ database_id }}</strong></p>
+      {% if name %}<p class="muted" style="margin:2px 0 0;">{{ name }}{% if description %} &mdash; {{ description }}{% endif %}</p>{% endif %}
+      <div class="dash-header__meta">
+        {{ series_items | length }} series &bull; {{ n_timestamps }} shared timestamps
+        {% if first_ts %} &bull; {{ first_ts }} &rarr; {{ last_ts }}{% endif %}
+      </div>
+    </div>
+    <div class="dash-header__actions">
+      <a href="/historical/ui" class="btn btn-primary">&larr; Back to databases</a>
+    </div>
+  </div>
+</div>
+
+<!-- Delete series records card -->
+<div class="upload-card">
+  <h3>Delete Records From a Series</h3>
+  <p class="upload-card__desc">Remove records from one series in this database by phase or time range. The series stays registered; to remove it entirely, delete matching records for the whole time range.</p>
+
+  <details class="advanced-accordion">
+    <summary>Delete Filters</summary>
+    <div class="advanced-accordion__body">
+      <form id="deleteForm" data-database-id="{{ database_id }}">
+        <div class="field">
+          <label style="min-width:120px;">Series ID</label>
+          <select class="input" id="seriesId" name="series_id" style="width:200px;" required>
+            {% for s in series_items %}<option value="{{ s.series_id }}">{{ s.series_id }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label style="min-width:120px;">Phase</label>
+          <select id="phase" name="phase" class="input" style="width:200px;">
+            <option value="">All</option>
+            <option value="R">R</option>
+            <option value="S">S</option>
+            <option value="T">T</option>
+          </select>
+        </div>
+        <div class="field">
+          <label style="min-width:120px;">Start</label>
+          <input class="input" type="datetime-local" id="start" name="start" style="width:200px;">
+        </div>
+        <div class="field">
+          <label style="min-width:120px;">End</label>
+          <input class="input" type="datetime-local" id="end" name="end" style="width:200px;">
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <button id="deleteBtn" class="btn-sm-danger" type="submit" style="height:34px; padding:0 16px; font-size:13px;">Delete Records</button>
+        </div>
+        <p class="muted" id="deleteMsg"></p>
+      </form>
+    </div>
+  </details>
+</div>
+
+<!-- Series table -->
+<div class="panel grids-section">
+  <h3>Series in this Database</h3>
+
+  <div class="grids-search">
+    <input type="text" id="gridSearch" placeholder="Search series..." oninput="filterGridTable()">
+  </div>
+
+  <table class="data-table" id="gridsTable">
+    <thead>
+      <tr>
+        <th class="sortable" onclick="sortGridTable('grid-id', 'text', this)">Series ID <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('level', 'text', this)">Level <span class="sort-arrow"></span></th>
+        <th>Has Power</th>
+        <th>Has Voltage</th>
+        <th class="sortable" onclick="sortGridTable('records', 'num', this)">Records <span class="sort-arrow"></span></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in series_items %}
+      <tr data-grid-id="{{ s.series_id | lower }}" data-level="{{ s.grid_level }}" data-records="{{ s.n_records }}">
+        <td><a href="/historical/ui/{{ database_id }}/{{ s.series_id }}"><strong>{{ s.series_id }}</strong></a>{% if s.name %}<div class="muted" style="font-size:11px;">{{ s.name }}</div>{% endif %}</td>
+        <td><span class="badge {{ 'badge--mv' if s.grid_level == 'MV' else ('badge--feeder' if s.grid_level == 'Feeder' else 'badge--lv') }}">{{ s.grid_level }}</span></td>
+        <td>{{ '✓' if s.has_power else '—' }}</td>
+        <td>{{ '✓' if s.has_voltage else '—' }}</td>
+        <td>{{ "{:,}".format(s.n_records) }}</td>
+        <td>
+          <div class="row-actions">
+            <a href="/historical/ui/{{ database_id }}/{{ s.series_id }}" class="btn btn-primary">Dashboard</a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center; padding:24px; color:#6b7280;">No series in this database yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterGridTable() {
+  var q = document.getElementById('gridSearch').value.toLowerCase();
+  document.querySelectorAll('#gridsTable tbody tr').forEach(function (row) {
+    var id = row.getAttribute('data-grid-id') || '';
+    row.style.display = id.indexOf(q) !== -1 ? '' : 'none';
+  });
+}
+
+var gridSortDir = {};
+function sortGridTable(key, type, th) {
+  var tbody = document.querySelector('#gridsTable tbody');
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'))
+    .filter(function (r) { return r.hasAttribute('data-grid-id'); });
+  if (!rows.length) { return; }
+
+  var dir = gridSortDir[key] === 'asc' ? 'desc' : 'asc';
+  gridSortDir = {}; gridSortDir[key] = dir;
+  var mult = dir === 'asc' ? 1 : -1;
+  var attr = 'data-' + key;
+
+  rows.sort(function (a, b) {
+    var av = a.getAttribute(attr) || '';
+    var bv = b.getAttribute(attr) || '';
+    if (type === 'num') {
+      return ((parseFloat(av) || 0) - (parseFloat(bv) || 0)) * mult;
+    }
+    return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' }) * mult;
+  });
+
+  rows.forEach(function (r) { tbody.appendChild(r); });
+  document.querySelectorAll('#gridsTable thead th.sortable').forEach(function (h) {
+    h.classList.remove('sorted-asc', 'sorted-desc');
+  });
+  th.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+}
+</script>
+<script src="/static/js/historical-database.js"></script>
+{% endblock %}

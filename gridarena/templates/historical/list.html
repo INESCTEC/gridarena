@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<style>
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable .sort-arrow { margin-left: 4px; font-size: .8em; }
+  th.sortable .sort-arrow::after { content: '\2195'; opacity: .35; }
+  th.sortable.sorted-asc .sort-arrow::after { content: '\25B2'; opacity: 1; }
+  th.sortable.sorted-desc .sort-arrow::after { content: '\25BC'; opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="grid-dash-header">
+    <div>
+      <h2>Historical</h2>
+      <p>Upload, inspect and manage historical databases -- named collections of standalone power/voltage series that share one timeline.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Explanation -->
+<div class="panel">
+  <p class="muted">
+    Unlike <a href="/measurements/ui">Measurements</a> (which requires a registered grid and node for every reading),
+    a Historical <strong>database</strong> is just an ID with a shared list of timestamps, plus any number of
+    <strong>series</strong> ("historicals") that each report power and/or voltage values at those same timestamps.
+    Every series in a database is required to use that same timeline -- you can't upload a value at a datetime the
+    database hasn't declared. Each series can hold power values, voltage values, or both, and is tagged with the
+    grid level (<strong>MV</strong>, <strong>LV</strong>, or <strong>Feeder</strong>) it's meant for. You only ever
+    upload whole databases; a database can contain as many series as you like.
+  </p>
+</div>
+
+<!-- Summary cards -->
+<div class="grid-summary-cards">
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ items | length }}</div>
+    <div class="grid-summary-card__label">Total Databases</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ total_series }}</div>
+    <div class="grid-summary-card__label">Total Series</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ "{:,}".format(total_records) }}</div>
+    <div class="grid-summary-card__label">Total Records</div>
+  </div>
+</div>
+
+<!-- Upload card -->
+<div class="upload-card">
+  <h3>Upload Historical Database</h3>
+  <p class="upload-card__desc">
+    Upload a JSON file: <code>database_id</code>, optional <code>name</code>/<code>description</code>,
+    a <code>timestamps</code> list (the shared timeline), and a <code>historicals</code> list -- each entry has a
+    <code>series_id</code>, <code>grid_level</code> ("MV", "LV", or "Feeder"), and a <code>values</code> list whose
+    <code>datetime</code>s must all be members of <code>timestamps</code>. Each value needs power fields
+    (<code>power_active</code>/<code>power_reactive</code>), voltage fields
+    (<code>voltage_magnitude</code>/<code>voltage_angle</code>), or both.
+  </p>
+
+  <form id="uploadForm" action="/historical/" method="post" enctype="multipart/form-data">
+    <input id="fileInput" type="file" name="file" accept=".json,application/json" hidden>
+    <div id="drop" class="drop" role="button" tabindex="0">
+      <div class="icon">&#11014;</div>
+      <div class="drop__title">Drop database JSON here or click to choose<br><span class="muted">Accepted: .json</span></div>
+      <div class="drop__label muted" id="fileLabel">No file selected</div>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <button id="uploadBtn" class="btn btn-primary" type="submit" disabled>Upload Database</button>
+    </div>
+    <p class="muted" id="uploadMsg"></p>
+  </form>
+</div>
+
+<!-- Delete database card -->
+<div class="upload-card">
+  <h3>Delete Database</h3>
+  <p class="upload-card__desc">Remove a whole database -- its timeline, every series in it, and all their records. To delete records from just one series, open that database's page instead.</p>
+
+  <details class="advanced-accordion">
+    <summary>Delete a Database</summary>
+    <div class="advanced-accordion__body">
+      <form id="deleteForm">
+        <div class="field">
+          <label style="min-width:120px;">Database ID</label>
+          <input class="input" type="text" id="databaseId" name="database_id" placeholder="database_id" required style="width:200px;">
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <button id="deleteBtn" class="btn-sm-danger" type="submit" style="height:34px; padding:0 16px; font-size:13px;">Delete Database</button>
+        </div>
+        <p class="muted" id="deleteMsg"></p>
+      </form>
+    </div>
+  </details>
+</div>
+
+<!-- Databases table -->
+<div class="panel grids-section">
+  <h3>Databases Overview</h3>
+  <p class="grids-section__desc">Click a database to browse the series it contains.</p>
+
+  <div class="grids-search">
+    <input type="text" id="gridSearch" placeholder="Search databases..." oninput="filterGridTable()">
+  </div>
+
+  <table class="data-table" id="gridsTable">
+    <thead>
+      <tr>
+        <th class="sortable" onclick="sortGridTable('grid-id', 'text', this)">Database ID <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('series', 'num', this)">Series <span class="sort-arrow"></span></th>
+        <th>MV / LV / Feeder</th>
+        <th class="sortable" onclick="sortGridTable('records', 'num', this)">Records <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('first', 'date', this)">First <span class="sort-arrow"></span></th>
+        <th class="sortable" onclick="sortGridTable('last', 'date', this)">Last <span class="sort-arrow"></span></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in items %}
+      <tr data-grid-id="{{ d.database_id | lower }}" data-series="{{ d.n_series }}" data-records="{{ d.n_records }}" data-first="{{ d.first_ts or '' }}" data-last="{{ d.last_ts or '' }}">
+        <td><a href="/historical/ui/{{ d.database_id }}"><strong>{{ d.database_id }}</strong></a>{% if d.name %}<div class="muted" style="font-size:11px;">{{ d.name }}</div>{% endif %}</td>
+        <td>{{ d.n_series }}</td>
+        <td><span class="badge badge--mv">{{ d.n_mv }} MV</span> <span class="badge badge--lv">{{ d.n_lv }} LV</span> <span class="badge badge--feeder">{{ d.n_feeder }} Feeder</span></td>
+        <td>{{ "{:,}".format(d.n_records) }}</td>
+        <td>{{ d.first_ts or '—' }}</td>
+        <td>{{ d.last_ts or '—' }}</td>
+        <td>
+          <div class="row-actions">
+            <a href="/historical/ui/{{ d.database_id }}" class="btn btn-primary">Browse</a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center; padding:24px; color:#6b7280;">No databases found. Upload one above to get started.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterGridTable() {
+  var q = document.getElementById('gridSearch').value.toLowerCase();
+  document.querySelectorAll('#gridsTable tbody tr').forEach(function (row) {
+    var id = row.getAttribute('data-grid-id') || '';
+    row.style.display = id.indexOf(q) !== -1 ? '' : 'none';
+  });
+}
+
+var gridSortDir = {};
+function sortGridTable(key, type, th) {
+  var tbody = document.querySelector('#gridsTable tbody');
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'))
+    .filter(function (r) { return r.hasAttribute('data-grid-id'); });
+  if (!rows.length) { return; }
+
+  var dir = gridSortDir[key] === 'asc' ? 'desc' : 'asc';
+  gridSortDir = {}; gridSortDir[key] = dir;
+  var mult = dir === 'asc' ? 1 : -1;
+  var attr = 'data-' + key;
+
+  rows.sort(function (a, b) {
+    var av = a.getAttribute(attr) || '';
+    var bv = b.getAttribute(attr) || '';
+    if (type === 'num') {
+      return ((parseFloat(av) || 0) - (parseFloat(bv) || 0)) * mult;
+    }
+    return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' }) * mult;
+  });
+
+  rows.forEach(function (r) { tbody.appendChild(r); });
+  document.querySelectorAll('#gridsTable thead th.sortable').forEach(function (h) {
+    h.classList.remove('sorted-asc', 'sorted-desc');
+  });
+  th.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+}
+</script>
+<script src="/static/js/historical-list.js"></script>
+{% endblock %}

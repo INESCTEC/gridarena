@@ -1,0 +1,100 @@
+
+# Byte-compiled / optimized / DLL files
+**\__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+*.egg-info/
+build/
+dist/
+.eggs/
+pip-wheel-metadata/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment variables
+.env
+
+# Virtual environments
+venv/
+.env/
+.venv/
+env/
+ENV/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Logs and databases
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
+
+# Pytest cache
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+
+# Pydantic schema cache
+__pydantic_schema_cache__/
+
+# Misc
+*.bak*
+*.tmp
+*.swp
+
+# MS Office lock files (e.g. ~$deliverable.docx)
+~$*
+
+# Grid data insertion scripts and datasets
+database_creation/
+feeder_measurement/
+
+# Local run logs
+feeder_log.txt
+output_log.txt
+
+# Local RL experiment artifacts (checkpoints, TensorBoard logs, plots)
+GymEnv/
+
+# Generated working documents / deliverable drafts
+claude_docs/
+
+# RAG vector store (rebuilt at startup by init_rag())
+gridarena/llm/rag/chroma_db/
+
+# Writable runtime state outside the installed package (document-assistant storage, etc.)
+data/llm/
+
+# Background job run artifacts (rl/diffusion/pf_datagen training & data-gen runs)
+gridarena/rl/runs/
+gridarena/diffusion/runs/
+gridarena/pf_datagen/runs/
+
+# MkDocs local build output (Read the Docs builds this remotely)
+site/
+
+# No longer tracked -- kept locally only
+llm_fix_plan.md
+CHANGELOG.md

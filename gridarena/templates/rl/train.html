@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/ai-training-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="ai-header">
+    <h2>RL Training Workspace</h2>
+    <p>Train reinforcement-learning agents for voltage control on selected grids.</p>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="ai-summary">
+  <div class="ai-summary-card">
+    <div class="ai-summary-card__value">{{ grids | length }}</div>
+    <div class="ai-summary-card__label">Available Grids</div>
+  </div>
+  <div class="ai-summary-card">
+    <div class="ai-summary-card__value">{{ runs | length }}</div>
+    <div class="ai-summary-card__label">Training Runs</div>
+  </div>
+  <div class="ai-summary-card">
+    <div class="ai-summary-card__value">{{ runs | selectattr('status', 'eq', 'completed') | list | length }}</div>
+    <div class="ai-summary-card__label">Completed</div>
+  </div>
+  <div class="ai-summary-card">
+    <div class="ai-summary-card__value" id="scAgent">Single</div>
+    <div class="ai-summary-card__label">Agent Mode</div>
+  </div>
+</div>
+
+<form id="trainForm">
+
+<!-- Step 1: Environment -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">1</div>
+    <h4 class="ai-step__title">Environment</h4>
+  </div>
+  <p class="ai-step__desc">Select the grid topology the agent will be trained on. Nodes, connections and impedances are loaded from the database.</p>
+
+  <div class="field">
+    <label style="min-width:120px;">Grid</label>
+    <select id="gridId" class="input" required style="width:240px;" onchange="updateGridPreview()">
+      <option value="">Select a grid</option>
+      {% for gid in grids %}
+      <option value="{{ gid }}">{{ gid }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div id="gridPreview" style="margin-top:10px; padding:10px 14px; background:var(--color-surface-sunken); border-radius:var(--radius-sm); font-size:12px; color:var(--color-text-muted);">
+    No grid selected.
+  </div>
+</div>
+
+<!-- Step 2: Agent Configuration -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">2</div>
+    <h4 class="ai-step__title">Agent Configuration</h4>
+  </div>
+  <p class="ai-step__desc">Choose the agent architecture and training duration.</p>
+
+  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+    <div class="grid-chip grid-chip--selected" id="chipSingle" onclick="selectAgent('single')" style="padding:10px 16px; cursor:pointer;">
+      <div><strong>Single Agent</strong></div>
+      <div style="font-size:11px; color:var(--color-text-muted); margin-top:2px;">Centralised voltage-control policy for all nodes</div>
+    </div>
+    <div class="grid-chip" id="chipMulti" onclick="selectAgent('multi')" style="padding:10px 16px; cursor:pointer;">
+      <div><strong>Multi Agent</strong></div>
+      <div style="font-size:11px; color:var(--color-text-muted); margin-top:2px;">Distributed per-node controllers with shared policy</div>
+    </div>
+  </div>
+  <input type="hidden" id="agentType" value="single">
+
+  <div class="preset-row">
+    <button type="button" class="preset-btn" onclick="applyPreset('quick')">Quick Test</button>
+    <button type="button" class="preset-btn active" onclick="applyPreset('balanced')">Balanced</button>
+    <button type="button" class="preset-btn" onclick="applyPreset('long')">Long Training</button>
+  </div>
+
+  <div class="field">
+    <label style="min-width:140px;" title="Total environment interactions during training. Each timestep = one episode.">Timesteps</label>
+    <input id="timesteps" class="input" type="number" value="5000" min="1000" max="10000000" step="1000" style="width:200px;">
+  </div>
+</div>
+
+<!-- Step 3: Reward & Constraints -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">3</div>
+    <h4 class="ai-step__title">Reward &amp; Constraints</h4>
+  </div>
+  <p class="ai-step__desc">Configure the reward function and physical constraints of the environment.</p>
+
+  <div class="field">
+    <label style="min-width:180px;" title="Max deviation from nominal voltage (p.u.) before penalty. 0.1 = &plusmn;10%.">Violation Threshold</label>
+    <input id="violationThreshold" class="input" type="number" value="0.1" step="0.01" min="0.01" max="0.5" style="width:180px;">
+  </div>
+  <div class="field">
+    <label style="min-width:180px;" title="Multiplier for quadratic violation penalty. Higher = more aggressive correction.">Reward Scale</label>
+    <input id="rewardScale" class="input" type="number" value="100" step="10" min="1" style="width:180px;">
+  </div>
+  <div class="field">
+    <label style="min-width:180px;" title="Minimum power per node (kW). Negative = loads.">P Min (kW)</label>
+    <input id="pMin" class="input" type="number" value="-20" step="1" style="width:180px;">
+  </div>
+  <div class="field">
+    <label style="min-width:180px;" title="Maximum power per node (kW). Positive = generators.">P Max (kW)</label>
+    <input id="pMax" class="input" type="number" value="30" step="1" style="width:180px;">
+  </div>
+  <div class="field">
+    <label style="min-width:180px;" title="Nominal voltage (V). Typically 230V for European LV grids.">Voltage Ref (V)</label>
+    <input id="voltRef" class="input" type="number" value="230" step="1" min="1" style="width:180px;">
+  </div>
+  <div class="field">
+    <label style="min-width:180px;" title="Scale factor for DB admittances. 1.0 = physical values.">Admittance Scale</label>
+    <input id="admittanceScale" class="input" type="number" value="1.0" step="0.1" min="0.01" style="width:180px;">
+  </div>
+</div>
+
+<!-- Step 4: Wrappers -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">4</div>
+    <h4 class="ai-step__title">Reward Wrappers</h4>
+  </div>
+  <p class="ai-step__desc">Add penalty and noise wrappers to shape the reward signal and improve robustness.</p>
+
+  <div style="display:flex; flex-direction:column; gap:8px;">
+    <label class="grid-chip grid-chip--selected" style="padding:8px 14px; cursor:pointer; display:flex; align-items:center; gap:10px;" id="wrapActionPenalty">
+      <input type="checkbox" name="wrapper" value="ActionPenalty" checked onchange="toggleWrapChip(this)">
+      <div><strong>Action Penalty</strong><br><span style="font-size:11px; color:var(--color-text-muted);">Penalises excessive or unstable control actions (L2 norm)</span></div>
+    </label>
+    <label class="grid-chip grid-chip--selected" style="padding:8px 14px; cursor:pointer; display:flex; align-items:center; gap:10px;" id="wrapObservationNoise">
+      <input type="checkbox" name="wrapper" value="ObservationNoise" checked onchange="toggleWrapChip(this)">
+      <div><strong>Observation Noise</strong><br><span style="font-size:11px; color:var(--color-text-muted);">Adds Gaussian noise to voltage observations for robustness</span></div>
+    </label>
+    <label class="grid-chip" style="padding:8px 14px; cursor:pointer; display:flex; align-items:center; gap:10px;" id="wrapL1ActionPenalty">
+      <input type="checkbox" name="wrapper" value="L1ActionPenalty" onchange="toggleWrapChip(this)">
+      <div><strong>L1 Penalty</strong><br><span style="font-size:11px; color:var(--color-text-muted);">Encourages sparse actions — only a few nodes adjusted</span></div>
+    </label>
+    <label class="grid-chip" style="padding:8px 14px; cursor:pointer; display:flex; align-items:center; gap:10px;" id="wrapPowerBalance">
+      <input type="checkbox" name="wrapper" value="PowerBalance" onchange="toggleWrapChip(this)">
+      <div><strong>Power Balance</strong><br><span style="font-size:11px; color:var(--color-text-muted);">Penalises changes to total grid power balance</span></div>
+    </label>
+    <label class="grid-chip" style="padding:8px 14px; cursor:pointer; display:flex; align-items:center; gap:10px;" id="wrapStablePenalty">
+      <input type="checkbox" name="wrapper" value="StablePenalty" onchange="toggleWrapChip(this)">
+      <div><strong>Stable Penalty</strong><br><span style="font-size:11px; color:var(--color-text-muted);">Penalises acting on an already-stable grid</span></div>
+    </label>
+  </div>
+</div>
+
+<!-- Step 5: Review & Start -->
+<div class="ai-step">
+  <div class="ai-step__header">
+    <div class="ai-step__number">5</div>
+    <h4 class="ai-step__title">Review &amp; Start</h4>
+  </div>
+
+  <div class="review-card" id="reviewCard">
+    <h4>Training Configuration Summary</h4>
+    <dl class="review-grid" id="reviewGrid"></dl>
+  </div>
+
+  <div class="field" style="margin-top:16px;">
+    <button id="trainBtn" class="btn btn-primary" type="submit">Start Training</button>
+  </div>
+  <p class="muted" id="trainMsg"></p>
+
+  <div class="ai-result" id="trainResult">
+    <h4>Training Started</h4>
+    <p class="muted" id="trainResultMsg"></p>
+  </div>
+</div>
+
+</form>
+
+<!-- Training Runs -->
+<div class="panel ai-runs">
+  <h3>Training Runs</h3>
+  <p class="ai-runs__desc">Monitor RL training jobs and inspect previous experiments.</p>
+
+  <table class="data-table" id="runsTable">
+    <thead>
+      <tr>
+        <th>Run ID</th>
+        <th>Grid</th>
+        <th>Agent</th>
+        <th>Timesteps</th>
+        <th>Wrappers</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in runs %}
+      <tr>
+        <td><a href="/rl/ui/{{ run.run_id }}"><strong>{{ run.run_id }}</strong></a></td>
+        <td>{{ run.grid_id }}</td>
+        <td>{{ run.agent_type }}</td>
+        <td>{{ run.timesteps }}</td>
+        <td><span class="muted" style="font-size:11px;">—</span></td>
+        <td>
+          <span class="status-badge status-badge--{{ run.status }}">{{ run.status }}</span>
+          {% if run.status == 'failed' and run.error %}
+          <span class="muted" style="font-size:10px; display:block; margin-top:2px; color:var(--color-danger);">{{ run.error[:60] }}</span>
+          {% endif %}
+        </td>
+        <td>{{ run.created_at[:16] }}</td>
+        <td>
+          <div class="row-actions">
+            <a href="/rl/ui/{{ run.run_id }}" class="btn btn-primary" style="height:28px; padding:0 10px; font-size:11px;">View</a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center; padding:24px; color:var(--color-text-muted);">No RL training runs yet. Configure a grid and start your first training above.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/rl-train.js"></script>
+{% endblock %}

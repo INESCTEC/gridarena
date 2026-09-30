@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/benchmark-dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="bench-header">
+    <h2>Voltage Control Benchmark</h2>
+    <p>Download voltage violation scenarios, submit corrective actions and evaluate control performance.</p>
+  </div>
+</div>
+
+<div class="bench-summary">
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scScenario">Overvoltages</div>
+    <div class="bench-summary-card__label">Scenario</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scDifficulty">clean</div>
+    <div class="bench-summary-card__label">Difficulty</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scSubmission">Not submitted</div>
+    <div class="bench-summary-card__label">Last Submission</div>
+  </div>
+  <div class="bench-summary-card">
+    <div class="bench-summary-card__value" id="scScore">—</div>
+    <div class="bench-summary-card__label">Last Score</div>
+  </div>
+</div>
+
+<div class="bench-setup">
+  <h3>Benchmark Setup</h3>
+  <div class="field">
+    <label title="Identifies your submission. Use different values to keep multiple attempts (e.g. alice_v1, alice_v2).">Submission ID</label>
+    <input class="input" type="text" id="userId" placeholder="e.g. alice_v1" style="width:220px;">
+  </div>
+  <div class="field">
+    <label title="The grid to evaluate voltage control on.">Grid ID</label>
+    <select id="gridId" class="input" style="width:220px;">
+      <option value="" disabled selected>Select a grid...</option>
+      {% for g in grids %}
+      <option value="{{ g }}">{{ g }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label title="Voltage threshold for selecting snapshots with violations (e.g. 230).">Voltage Limit (V)</label>
+    <input class="input" type="number" id="voltageLimit" placeholder="e.g. 230" step="any" style="width:220px;">
+  </div>
+  <div class="field">
+    <label title="Type of violation to target.">Scenario</label>
+    <select id="scenarioSelect" class="input" style="width:220px;" onchange="document.getElementById('scScenario').textContent = this.value;">
+      <option value="Overvoltages" selected>Overvoltages</option>
+      <option value="Undervoltages">Undervoltages</option>
+    </select>
+  </div>
+  <div class="field">
+    <label title="Filters snapshots by hardness level.">Difficulty</label>
+    <select id="difficultySelect" class="input" style="width:220px;" onchange="document.getElementById('scDifficulty').textContent = this.value;">
+      <option value="clean" selected>clean</option>
+      <option value="easy">easy</option>
+      <option value="medium">medium</option>
+      <option value="hard">hard</option>
+    </select>
+  </div>
+</div>
+
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">1</div>
+    <h4 class="bench-step__title">Download Benchmark Data</h4>
+  </div>
+  <p class="bench-step__desc">Download training scenarios (with reference solutions) and control data (anonymised, solutions hidden) for algorithm development.</p>
+  <div class="field">
+    <button class="btn-secondary" type="button" id="btnDownloadTrain" title="Training data with visible reference solutions.">Download Training Scenarios</button>
+    <button class="btn btn-primary" type="button" id="btnDownloadControl" title="Anonymised test data without solutions.">Download Control Data</button>
+  </div>
+  <p class="muted" id="downloadMsg"></p>
+</div>
+
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">2</div>
+    <h4 class="bench-step__title">Submit Results</h4>
+  </div>
+  <p class="bench-step__desc">Upload a JSON file containing your corrective power adjustments for each anonymised snapshot.</p>
+  <input id="resultFile" type="file" accept=".json" hidden>
+  <div id="resultDrop" class="drop" role="button" tabindex="0">
+    <div class="icon">&#11014;</div>
+    <div class="drop__title">Drop results JSON here or click to choose<br><span class="muted">Accepted: .json</span></div>
+    <div class="drop__label muted" id="resultFileLabel">No file selected</div>
+  </div>
+  <div class="field" style="margin-top:12px;">
+    <button class="btn btn-primary" type="button" id="btnSubmit" disabled>Submit Results</button>
+  </div>
+  <p class="muted" id="uploadMsg"></p>
+  <div class="bench-result" id="submitResult">
+    <h4>Submission Received</h4>
+    <p class="muted" id="submitResultMsg"></p>
+  </div>
+</div>
+
+<div class="bench-step">
+  <div class="bench-step__header">
+    <div class="bench-step__number">3</div>
+    <h4 class="bench-step__title">Evaluate Score</h4>
+  </div>
+  <p class="bench-step__desc">Evaluate your voltage control performance — overall score, per-timestamp breakdown, and effort metrics.</p>
+  <div class="field">
+    <button class="btn btn-primary" type="button" id="btnScore">Check Score</button>
+  </div>
+  <div class="bench-result" id="scoreResult">
+    <h4>Score Results</h4>
+    <table id="scoreTable"></table>
+    <details style="margin-top:10px;">
+      <summary style="cursor:pointer; font-size:12px; color:var(--color-accent); font-weight:600;">Per-Timestamp Breakdown</summary>
+      <pre id="scoreDetail" style="font-size:11px; max-height:300px; overflow:auto; background:var(--color-surface-sunken); padding:10px; border-radius:var(--radius-sm); margin-top:8px;"></pre>
+    </details>
+  </div>
+  <div class="bench-result bench-result--error" id="scoreError">
+    <h4>Error</h4>
+    <p class="muted" id="scoreErrorMsg"></p>
+  </div>
+</div>
+
+<details class="bench-hint">
+  <summary>Results JSON Format</summary>
+  <div class="bench-hint__body">
+    <p>The results file should be a JSON object mapping anonymised snapshot keys to corrective actions per node:</p>
+    <pre>{
+  "anon_key_1": [
+    {"node_id": "N1", "power_adjustment": -2.5, "voltage_after": 231.2},
+    {"node_id": "N2", "power_adjustment": 1.0, "voltage_after": 229.8}
+  ],
+  "anon_key_2": [...]
+}</pre>
+    <p>See <a href="/docs">API Docs</a> for the full schema specification.</p>
+  </div>
+</details>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/benchmark-voltage.js"></script>
+{% endblock %}

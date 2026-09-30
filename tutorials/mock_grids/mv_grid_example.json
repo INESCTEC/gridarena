@@ -1,0 +1,88 @@
+{
+  "mv_grid_id": "MV_GRID_01",
+  "name": "Porto Industrial MV Network",
+  "description": "A 20kV medium voltage distribution network serving 4 LV substations in the Porto industrial zone.",
+  "nominal_voltage_kv": 20.0,
+  "region": "Porto",
+
+  "nodes": [
+    {"node_id": "MV_SUB",   "coord_lat": 41.1496, "coord_lon": -8.6110, "node_type": "substation"},
+    {"node_id": "MV_N1",    "coord_lat": 41.1510, "coord_lon": -8.6080, "node_type": "junction"},
+    {"node_id": "MV_N2",    "coord_lat": 41.1525, "coord_lon": -8.6050, "node_type": "junction"},
+    {"node_id": "MV_N3",    "coord_lat": 41.1480, "coord_lon": -8.6070, "node_type": "junction"},
+    {"node_id": "MV_N4",    "coord_lat": 41.1505, "coord_lon": -8.6130, "node_type": "junction"},
+    {"node_id": "MV_N5",    "coord_lat": 41.1540, "coord_lon": -8.6020, "node_type": "junction"},
+    {"node_id": "MV_CP1",   "coord_lat": 41.1515, "coord_lon": -8.6065, "node_type": "connection_point"},
+    {"node_id": "MV_CP2",   "coord_lat": 41.1535, "coord_lon": -8.6035, "node_type": "connection_point"},
+    {"node_id": "MV_CP3",   "coord_lat": 41.1475, "coord_lon": -8.6055, "node_type": "connection_point"},
+    {"node_id": "MV_CP4",   "coord_lat": 41.1500, "coord_lon": -8.6145, "node_type": "connection_point"}
+  ],
+
+  "cables": [
+    {"cable_id": "MV_CBL_A", "imp_real": 0.125, "imp_imag": 0.098, "nom_curr": 300.0},
+    {"cable_id": "MV_CBL_B", "imp_real": 0.162, "imp_imag": 0.112, "nom_curr": 250.0},
+    {"cable_id": "MV_CBL_C", "imp_real": 0.210, "imp_imag": 0.130, "nom_curr": 200.0}
+  ],
+
+  "connections": [
+    {"connection_id": "MC01", "from_node_id": "MV_SUB", "to_node_id": "MV_N1",  "cable_id": "MV_CBL_A", "length": 450},
+    {"connection_id": "MC02", "from_node_id": "MV_SUB", "to_node_id": "MV_N3",  "cable_id": "MV_CBL_A", "length": 380},
+    {"connection_id": "MC03", "from_node_id": "MV_SUB", "to_node_id": "MV_N4",  "cable_id": "MV_CBL_B", "length": 320},
+    {"connection_id": "MC04", "from_node_id": "MV_N1",  "to_node_id": "MV_N2",  "cable_id": "MV_CBL_B", "length": 520},
+    {"connection_id": "MC05", "from_node_id": "MV_N2",  "to_node_id": "MV_N5",  "cable_id": "MV_CBL_C", "length": 280},
+    {"connection_id": "MC06", "from_node_id": "MV_N1",  "to_node_id": "MV_CP1", "cable_id": "MV_CBL_C", "length": 150},
+    {"connection_id": "MC07", "from_node_id": "MV_N5",  "to_node_id": "MV_CP2", "cable_id": "MV_CBL_C", "length": 120},
+    {"connection_id": "MC08", "from_node_id": "MV_N3",  "to_node_id": "MV_CP3", "cable_id": "MV_CBL_B", "length": 180},
+    {"connection_id": "MC09", "from_node_id": "MV_N4",  "to_node_id": "MV_CP4", "cable_id": "MV_CBL_C", "length": 200}
+  ],
+
+  "connection_points": [
+    {"connection_point_id": "CP1", "node_id": "MV_CP1", "name": "Rua da Industria Substation"},
+    {"connection_point_id": "CP2", "node_id": "MV_CP2", "name": "Zona Norte Substation"},
+    {"connection_point_id": "CP3", "node_id": "MV_CP3", "name": "Parque Empresarial Substation"},
+    {"connection_point_id": "CP4", "node_id": "MV_CP4", "name": "Avenida Central Substation"}
+  ],
+
+  "transformers": [
+    {
+      "transformer_id": "TR01",
+      "connection_point_id": "CP1",
+      "rated_power_kva": 630,
+      "primary_voltage_kv": 20.0,
+      "secondary_voltage_v": 230.0,
+      "imp_real": 0.004,
+      "imp_imag": 0.040,
+      "name": "Rua da Industria 630kVA"
+    },
+    {
+      "transformer_id": "TR02",
+      "connection_point_id": "CP2",
+      "rated_power_kva": 400,
+      "primary_voltage_kv": 20.0,
+      "secondary_voltage_v": 230.0,
+      "imp_real": 0.006,
+      "imp_imag": 0.045,
+      "name": "Zona Norte 400kVA"
+    },
+    {
+      "transformer_id": "TR03",
+      "connection_point_id": "CP3",
+      "rated_power_kva": 1000,
+      "primary_voltage_kv": 20.0,
+      "secondary_voltage_v": 400.0,
+      "imp_real": 0.003,
+      "imp_imag": 0.035,
+      "name": "Parque Empresarial 1MVA"
+    },
+    {
+      "transformer_id": "TR04",
+      "connection_point_id": "CP4",
+      "rated_power_kva": 250,
+      "primary_voltage_kv": 20.0,
+      "secondary_voltage_v": 230.0,
+      "imp_real": 0.008,
+      "imp_imag": 0.050,
+      "name": "Avenida Central 250kVA"
+    }
+  ]
+}

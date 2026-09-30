@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+  <div class="section-title">Training Run</div>
+  <p class="muted">Run <strong>{{ run.run_id }}</strong> &mdash; Grid: {{ run.grid_id }} &mdash; {{ run.agent_type }} agent</p>
+  <p><a href="/rl/ui">&larr; Back to RL Training</a></p>
+</div>
+
+<section class="panel">
+  <h3>Status: <span id="runStatus">{{ run.status }}</span></h3>
+
+  <table class="data-table" style="max-width:400px;">
+    <tr><th>Grid ID</th><td>{{ run.grid_id }}</td></tr>
+    <tr><th>Agent Type</th><td>{{ run.agent_type }}</td></tr>
+    <tr><th>Timesteps</th><td>{{ run.timesteps }}</td></tr>
+    <tr><th>Created</th><td>{{ run.created_at[:19] }}</td></tr>
+    {% if run.completed_at %}
+    <tr><th>Completed</th><td>{{ run.completed_at[:19] }}</td></tr>
+    {% endif %}
+    {% if run.error %}
+    <tr><th>Error</th><td style="color:#dc2626;">{{ run.error }}</td></tr>
+    {% endif %}
+  </table>
+
+  {% if run.metrics %}
+  <h3 style="margin-top:16px;">Metrics</h3>
+  <table class="data-table" style="max-width:400px;">
+    <tr><th>Total Episodes</th><td>{{ run.metrics.total_episodes }}</td></tr>
+    <tr><th>Mean Reward (last 100)</th><td>{{ "%.4f"|format(run.metrics.mean_reward) }}</td></tr>
+    <tr><th>Mean Violations (last 100)</th><td>{{ "%.2f"|format(run.metrics.mean_violations) }}</td></tr>
+  </table>
+  {% endif %}
+</section>
+
+{% if run.status == 'completed' %}
+<section class="panel">
+  <h3>Actions</h3>
+  <div class="field">
+    <a href="/rl/runs/{{ run.run_id }}/model" class="btn btn-primary">Download Model</a>
+    <button id="evalBtn" class="btn btn-success" type="button">Evaluate (Random Loads)</button>
+  </div>
+</section>
+
+<section class="panel" id="evalSection" style="display:none;">
+  <h3>Evaluation Results</h3>
+  <p class="muted" id="evalMsg"></p>
+  <div id="evalChart" style="width:100%;height:400px;"></div>
+  <div id="evalTable"></div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var status = '{{ run.status }}';
+  var runId = '{{ run.run_id }}';
+
+  if (status === 'queued' || status === 'running') {
+    var interval = setInterval(async function () {
+      try {
+        var res = await fetch('/rl/runs/' + runId);
+        var data = await res.json();
+        document.getElementById('runStatus').textContent = data.status;
+        if (data.status === 'completed' || data.status === 'failed') {
+          clearInterval(interval);
+          location.reload();
+        }
+      } catch (e) {}
+    }, 5000);
+  }
+
+  var evalBtn = document.getElementById('evalBtn');
+  if (evalBtn) {
+    evalBtn.addEventListener('click', async function () {
+      var msg = document.getElementById('evalMsg');
+      msg.textContent = 'Running evaluation...';
+      document.getElementById('evalSection').style.display = 'block';
+
+      try {
+        var res = await fetch('/rl/evaluate/' + runId, { method: 'POST' });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Evaluation failed');
+
+        msg.textContent = 'Violations: ' + data.violations_before + ' → ' + data.violations_after + ' | Reward: ' + data.reward.toFixed(4);
+
+        var labels = data.nodes.map(function (n) { return 'Node ' + n.index; });
+        var vInit = data.nodes.map(function (n) { return n.v_init_pu; });
+        var vFinal = data.nodes.map(function (n) { return n.v_final_pu; });
+
+        function loadAndPlot() {
+          Plotly.newPlot('evalChart', [
+            { x: labels, y: vInit, type: 'bar', name: 'Before' },
+            { x: labels, y: vFinal, type: 'bar', name: 'After' }
+          ], {
+            title: 'Voltage (p.u.) Before vs After',
+            yaxis: { title: 'Voltage (p.u.)' },
+            shapes: [
+              { type: 'line', y0: 1.1, y1: 1.1, x0: 0, x1: 1, xref: 'paper', line: { color: 'red', dash: 'dash' } },
+              { type: 'line', y0: 0.9, y1: 0.9, x0: 0, x1: 1, xref: 'paper', line: { color: 'red', dash: 'dash' } },
+              { type: 'line', y0: 1.0, y1: 1.0, x0: 0, x1: 1, xref: 'paper', line: { color: 'green', dash: 'dot' } }
+            ],
+            barmode: 'group'
+          });
+        }
+
+        if (window.Plotly) {
+          loadAndPlot();
+        } else {
+          var s = document.createElement('script');
+          s.src = 'https://cdn.plot.ly/plotly-2.26.0.min.js';
+          s.onload = loadAndPlot;
+          document.head.appendChild(s);
+        }
+      } catch (e) {
+        msg.textContent = 'Error: ' + e.message;
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/grid-dashboard.css">
+<link rel="stylesheet" href="/static/css/llm-config.css">
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="panel">
+  <div class="grid-dash-header">
+    <div>
+      <h2>LLM Agent Configuration</h2>
+      <p>Read-only overview of the Chat Assistant's agent structure, tools, and model settings.</p>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <a href="/chat/ui" class="btn btn-primary">Open Chat</a>
+    </div>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="grid-summary-cards">
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ config.agents | length }}</div>
+    <div class="grid-summary-card__label">Agents</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ config.total_tools }}</div>
+    <div class="grid-summary-card__label">Tools</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value">{{ config.model }}</div>
+    <div class="grid-summary-card__label">Model</div>
+  </div>
+  <div class="grid-summary-card">
+    <div class="grid-summary-card__value llm-cfg-status {{ 'llm-cfg-status--ok' if config.api_key_configured else 'llm-cfg-status--off' }}">{{ 'Connected' if config.api_key_configured else 'No Key' }}</div>
+    <div class="grid-summary-card__label">API Status</div>
+  </div>
+</div>
+
+<!-- Model settings -->
+<div class="panel" style="margin-bottom:20px;">
+  <h3>Model Settings</h3>
+  <p class="muted" style="margin:0 0 12px; font-size:12px;">These values are read-only. Change them via environment variables or <code>gridarena/llm/config.py</code>.</p>
+  <table class="data-table">
+    <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Model</td><td><code>{{ config.model }}</code></td></tr>
+      <tr><td>API URL</td><td><code>{{ config.api_url }}</code></td></tr>
+      <tr><td>API Key</td><td>{{ '********' if config.api_key_configured else '<span style="color:#dc2626;">Not configured</span>' }}</td></tr>
+      <tr><td>Temperature</td><td>{{ config.temperature }}</td></tr>
+      <tr><td>Max Tokens (with tools)</td><td>{{ config.max_tokens_with_tools }}</td></tr>
+      <tr><td>Max Tokens (interpretation)</td><td>{{ config.max_tokens_interpretation }}</td></tr>
+      <tr><td>Verify SSL</td><td>{{ config.verify_ssl }}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Agent cards -->
+<div class="panel" style="margin-bottom:20px;">
+  <h3>Agents</h3>
+  <p class="muted" style="margin:0 0 14px; font-size:12px;">Click an agent card to see its tools and keyword routing.</p>
+  <div class="llm-agent-grid">
+    {% for agent in config.agents %}
+    <div class="llm-agent-card" data-agent-idx="{{ loop.index0 }}" onclick="selectAgent({{ loop.index0 }})">
+      <div class="llm-agent-card__header">
+        <span class="llm-agent-card__name">{{ agent.name }}</span>
+        <span class="llm-agent-card__badge">{{ agent.tools | length ~ ' tools' if agent.tools else 'Informational' }}</span>
+      </div>
+      <p class="llm-agent-card__desc">{{ agent.description }}</p>
+      <div class="llm-agent-card__meta">
+        {% if agent.has_rag_docs %}<span class="llm-tag llm-tag--rag">RAG</span>{% endif %}
+        {% for kw in agent.keywords[:3] %}
+        <span class="llm-tag">{{ kw }}</span>
+        {% endfor %}
+        {% if agent.keywords | length > 3 %}
+        <span class="llm-tag">+{{ agent.keywords | length - 3 }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Agent detail panel -->
+<div class="panel" id="agentDetail" style="display:none; margin-bottom:20px;">
+  <div class="grid-dash-header" style="margin-bottom:14px;">
+    <div>
+      <h3 id="detailName" style="margin:0;"></h3>
+      <p class="muted" id="detailDesc" style="margin:4px 0 0;"></p>
+    </div>
+    <div style="display:flex; gap:6px;">
+      <button class="btn" onclick="closeDetail()" style="height:30px; padding:0 12px; font-size:11px;">Close</button>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:20px; flex-wrap:wrap;">
+    <!-- Tools table -->
+    <div style="flex:2; min-width:350px;">
+      <h4 style="font-size:13px; margin:0 0 8px; color:#374151;">Tools</h4>
+      <table class="data-table">
+        <thead><tr><th>Tool Name</th><th>Description</th></tr></thead>
+        <tbody id="detailTools"></tbody>
+      </table>
+    </div>
+    <!-- Sidebar info -->
+    <div style="flex:1; min-width:220px;">
+      <h4 style="font-size:13px; margin:0 0 8px; color:#374151;">Keyword Routing</h4>
+      <p class="muted" style="font-size:11px; margin:0 0 6px;">User messages containing these keywords route RAG context to this agent.</p>
+      <div id="detailKeywords" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+
+      <h4 style="font-size:13px; margin:16px 0 8px; color:#374151;">RAG Documentation</h4>
+      <p class="muted" id="detailRag" style="font-size:12px;"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Agent interaction diagram -->
+<div class="panel">
+  <h3>Agent Workflow</h3>
+  <p class="muted" style="margin:0 0 14px; font-size:12px;">How the multi-agent dispatch system processes a user message.</p>
+  <div class="llm-workflow">
+    <div class="llm-wf-step">
+      <div class="llm-wf-step__num">1</div>
+      <div class="llm-wf-step__body">
+        <strong>User Message</strong>
+        <span>Received via WebSocket</span>
+      </div>
+    </div>
+    <div class="llm-wf-arrow"></div>
+    <div class="llm-wf-step">
+      <div class="llm-wf-step__num">2</div>
+      <div class="llm-wf-step__body">
+        <strong>Keyword Matching</strong>
+        <span>Select relevant agents for RAG</span>
+      </div>
+    </div>
+    <div class="llm-wf-arrow"></div>
+    <div class="llm-wf-step">
+      <div class="llm-wf-step__num">3</div>
+      <div class="llm-wf-step__body">
+        <strong>RAG Enrichment</strong>
+        <span>Retrieve doc chunks from ChromaDB</span>
+      </div>
+    </div>
+    <div class="llm-wf-arrow"></div>
+    <div class="llm-wf-step">
+      <div class="llm-wf-step__num">4</div>
+      <div class="llm-wf-step__body">
+        <strong>LLM Call</strong>
+        <span>System prompt + context + all {{ config.total_tools }} tools</span>
+      </div>
+    </div>
+    <div class="llm-wf-arrow"></div>
+    <div class="llm-wf-step">
+      <div class="llm-wf-step__num">5</div>
+      <div class="llm-wf-step__body">
+        <strong>Tool Dispatch</strong>
+        <span>Route tool call to the owning agent</span>
+      </div>
+    </div>
+    <div class="llm-wf-arrow"></div>
+    <div class="llm-wf-step">
+      <div class="llm-wf-step__num">6</div>
+      <div class="llm-wf-step__body">
+        <strong>Interpretation</strong>
+        <span>LLM summarises tool results for user</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var AGENTS = {{ config.agents | tojson }};
+</script>
+<script src="/static/js/llm-config.js"></script>
+{% endblock %}
